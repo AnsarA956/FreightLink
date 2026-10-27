@@ -1,0 +1,350 @@
+==== DistanceService ==== 
+<?php
+
+namespace App\Services;
+
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Http;
+use RuntimeException;
+
+class DistanceService
+{
+    private const BASE_URL = 'https://api.openrouteservice.org';
+
+    // Returns the road distance in km between two addresses
+    public function distanceKm(string $from, string $to): float
+    {
+        $key = config('services.openrouteservice.key');
+
+        if (! $key) {
+            throw new RuntimeException('The map service key is missing. Add ORS_API_KEY to the .env file.');
+        }
+
+        $start = $this->geocode($from, $key);
+        $end   = $this->geocode($to, $key);
+
+        try {
+            $response = $this->client($key)->post(self::BASE_URL . '/v2/directions/driving-car', [
+                'coordinates' => [$start, $end],
+                'radiuses'    => [-1, -1], // accept the nearest road, however far
+            ]);
+        } catch (ConnectionException $e) {
+            throw new RuntimeException('Could not reach the map service. Check the internet connection and try again.');
+        }
+
+        if ($response->failed()) {
+            throw new RuntimeException('The map service could not find a road route between these two addresses.');
+        }
+
+        $meters = data_get($response->json(), 'routes.0.summary.distance');
+
+        if ($meters === null) {
+            throw new RuntimeException('The distance could not be calculated. Please check both addresses.');
+        }
+
+        return round($meters / 1000, 2);
+    }
+
+    // Turns an address into [longitude, latitude]
+    private function geocode(string $address, string $key): array
+    {
+        try {
+            $response = $this->client($key)->get(self::BASE_URL . '/geocode/search', [
+                'text'             => $address,
+                'size'             => 1,
+                'boundary.country' => 'PK', // search inside Pakistan only; delete this line to search worldwide
+            ]);
+        } catch (ConnectionException $e) {
+            throw new RuntimeException('Could not reach the map service. Check the internet connection and try again.');
+        }
+
+        if ($response->failed()) {
+            throw new RuntimeException('The address search failed. Check the map service key and try again.');
+        }
+
+        $coordinates = data_get($response->json(), 'features.0.geometry.coordinates');
+
+        if (! $coordinates) {
+            throw new RuntimeException("Address not found: \"{$address}\". Add the city name and try again.");
+        }
+
+        return $coordinates;
+    }
+
+    private function client(string $key): PendingRequest
+    {
+        return Http::withHeaders(['Authorization' => $key])
+            ->withOptions(['verify' => filter_var(config('services.openrouteservice.verify', true), FILTER_VALIDATE_BOOLEAN)])
+            ->timeout(20)
+            ->acceptJson();
+    }
+}==== ShipmentCreator ==== 
+<?php
+
+namespace App\Services;
+
+use App\Models\DiscountCode;
+use App\Models\Shipment;
+use App\Models\StatusLog;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
+
+class ShipmentCreator
+{
+    // Saves a shipment for the given customer, using the price that was calculated and shown
+    public function create(User $customer, array $in, array $b, string $note): Shipment
+    {
+        return DB::transaction(function () use ($customer, $in, $b, $note) {
+            // The code must still be valid at the moment of confirmation
+            if (! empty($b['discount_code_id'])) {
+                $code = DiscountCode::lockForUpdate()->find($b['discount_code_id']);
+
+                if (! $code || ! $code->isUsable()) {
+                    throw new RuntimeException('The discount code is no longer valid. Please calculate the price again.');
+                }
+            }
+
+            $shipment = Shipment::create([
+                'tracking_id'        => $this->newTrackingId(),
+                'user_id'            => $customer->id,
+                'service_type_id'    => $in['service_type_id'],
+                'cargo_type_id'      => $in['cargo_type_id'],
+                'pickup_address'     => $in['pickup_address'],
+                'delivery_address'   => $in['delivery_address'],
+                'weight_kg'          => $in['weight_kg'],
+                'length_cm'          => $in['length_cm'],
+                'width_cm'           => $in['width_cm'],
+                'height_cm'          => $in['height_cm'],
+                'volumetric_kg'      => $b['volumetric_kg'],
+                'chargeable_kg'      => $b['chargeable_kg'],
+                'distance_km'        => $b['distance_km'],
+                'subtotal'           => $b['subtotal'],
+                'service_multiplier' => $b['service_multiplier'],
+                'cargo_surcharge'    => $b['cargo_surcharge'],
+                'discount_code_id'   => $b['discount_code_id'] ?? null,
+                'discount_code'      => $b['discount_code'] ?? null,
+                'discount_percent'   => $b['discount_percent'] ?? null,
+                'discount_amount'    => $b['discount_amount'],
+                'tax_percent'        => $b['tax_percent'],
+                'tax_amount'         => $b['tax_amount'],
+                'total_price'        => $b['total_price'],
+                'status'             => 'Booked',
+            ]);
+
+            StatusLog::create([
+                'shipment_id' => $shipment->id,
+                'status'      => 'Booked',
+                'note'        => $note,
+                'changed_at'  => now(),
+            ]);
+
+            return $shipment;
+        });
+    }
+
+    private function newTrackingId(): string
+    {
+        do {
+            $id = 'FL-' . random_int(100000, 999999);
+        } while (Shipment::where('tracking_id', $id)->exists());
+
+        return $id;
+    }
+}==== booking form ==== 
+@extends('layouts.app')
+
+@section('title', 'Book a Shipment - FreightLink')
+
+@php
+    // If the customer came back from the price page, refill the form
+    $draft = session('booking_estimate.input', []);
+@endphp
+
+@section('content')
+<div class="max-w-2xl bg-white rounded-xl shadow p-6">
+    <h1 class="text-2xl font-bold mb-1">Book a shipment</h1>
+    <p class="text-sm text-slate-500 mb-4">Fill in the details. You will see the full price before anything is booked.</p>
+
+    @if ($errors->any())
+        <div class="mb-4 p-3 rounded bg-red-100 text-red-800 text-sm">
+            @foreach ($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('customer.book.estimate') }}" class="space-y-4">
+        @csrf
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Pickup address</label>
+            <input type="text" name="pickup_address" placeholder="e.g. Clock Tower, Faisalabad"
+                   value="{{ old('pickup_address', $draft['pickup_address'] ?? '') }}"
+                   class="w-full border rounded px-3 py-2" required>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Delivery address</label>
+            <input type="text" name="delivery_address" placeholder="e.g. Liberty Market, Lahore"
+                   value="{{ old('delivery_address', $draft['delivery_address'] ?? '') }}"
+                   class="w-full border rounded px-3 py-2" required>
+            <p class="text-xs text-slate-500 mt-1">Include the city name so the map service finds the right place.</p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Weight (kg)</label>
+            <input type="number" step="0.01" min="0.1" name="weight_kg"
+                   value="{{ old('weight_kg', $draft['weight_kg'] ?? '') }}"
+                   class="w-full border rounded px-3 py-2" required>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Package size (cm)</label>
+            <div class="grid grid-cols-3 gap-2">
+                <input type="number" step="0.01" min="1" name="length_cm" placeholder="Length"
+                       value="{{ old('length_cm', $draft['length_cm'] ?? '') }}" class="border rounded px-3 py-2" required>
+                <input type="number" step="0.01" min="1" name="width_cm" placeholder="Width"
+                       value="{{ old('width_cm', $draft['width_cm'] ?? '') }}" class="border rounded px-3 py-2" required>
+                <input type="number" step="0.01" min="1" name="height_cm" placeholder="Height"
+                       value="{{ old('height_cm', $draft['height_cm'] ?? '') }}" class="border rounded px-3 py-2" required>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Cargo type</label>
+                <select name="cargo_type_id" class="w-full border rounded px-3 py-2" required>
+                    @foreach ($cargoTypes as $cargo)
+                        <option value="{{ $cargo->id }}"
+                            @selected((string) old('cargo_type_id', $draft['cargo_type_id'] ?? '') === (string) $cargo->id)>
+                            {{ $cargo->name }}@if ($cargo->surcharge > 0) (+Rs {{ number_format($cargo->surcharge, 2) }})@endif
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Service type</label>
+                <select name="service_type_id" class="w-full border rounded px-3 py-2" required>
+                    @foreach ($services as $service)
+                        <option value="{{ $service->id }}"
+                            @selected((string) old('service_type_id', $draft['service_type_id'] ?? '') === (string) $service->id)>
+                            {{ $service->name }} (x{{ number_format($service->multiplier, 2) }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Discount code (optional)</label>
+            <input type="text" name="discount_code" value="{{ old('discount_code', $draft['discount_code'] ?? '') }}"
+                   placeholder="e.g. WELCOME10" class="w-full border rounded px-3 py-2 uppercase">
+        </div>
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Calculate price</button>
+    </form>
+</div>
+@endsection==== TrackingController ==== 
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Shipment;
+use Illuminate\Http\Request;
+
+class TrackingController extends Controller
+{
+    // The search page. If an ID was typed, go to that shipment's page.
+    public function index(Request $request)
+    {
+        if ($request->filled('tracking_id')) {
+            $request->validate([
+                'tracking_id' => ['string', 'max:20', 'regex:/^[A-Za-z0-9\-]+$/'],
+            ], [
+                'tracking_id.regex' => 'A tracking ID contains only letters, numbers and a dash, for example FL-123456.',
+            ]);
+
+            return redirect()->route('track.show', $this->normalize($request->input('tracking_id')));
+        }
+
+        return view('tracking.index');
+    }
+
+    // REQ-29 and REQ-30: show the status and timeline of one shipment
+    public function show(string $trackingId)
+    {
+        $id = $this->normalize($trackingId);
+
+        $shipment = Shipment::with(['serviceType', 'statusLogs'])
+            ->where('tracking_id', $id)
+            ->first();
+
+        if (! $shipment) {
+            return response()->view('tracking.index', ['notFound' => $id], 404);
+        }
+
+        // The normal path of a shipment, shown as a progress bar
+        $steps   = ['Booked', 'Assigned', 'Picked Up', 'In Transit', 'Delivered'];
+        $reached = $shipment->statusLogs->pluck('status')->unique()->all();
+
+        return view('tracking.show', [
+            'shipment' => $shipment,
+            'steps'    => $steps,
+            'reached'  => $reached,
+            'timeline' => $shipment->statusLogs->reverse()->values(), // newest first
+        ]);
+    }
+
+    // "fl-123456", " FL-123456 " and "123456" all become FL-123456
+    private function normalize(string $value): string
+    {
+        $id = strtoupper(trim($value));
+
+        return ctype_digit($id) ? 'FL-' . $id : $id;
+    }
+}==== config services ==== 
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Third Party Services
+    |--------------------------------------------------------------------------
+    |
+    | This file is for storing the credentials for third party services such
+    | as Resend, Postmark, AWS, and more. This file provides the de facto
+    | location for this type of information, allowing packages to have
+    | a conventional file to locate the various service credentials.
+    |
+    */
+
+    'postmark' => [
+        'key' => env('POSTMARK_API_KEY'),
+    ],
+
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
+    ],
+
+    'ses' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+    ],
+
+    'slack' => [
+        'notifications' => [
+            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
+            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+        ],
+    ],
+        'openrouteservice' => [
+        'key'    => env('ORS_API_KEY'),
+        'verify' => env('ORS_VERIFY_SSL', true),
+    ],
+
+];
+==== shipments columns ==== 
+Invalid switch - "i".

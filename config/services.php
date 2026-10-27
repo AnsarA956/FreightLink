@@ -34,5 +34,46 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+        'stripe' => [
+        'secret'   => env('STRIPE_SECRET'),
+        'currency' => env('STRIPE_CURRENCY', 'pkr'),
+        'usd_rate' => (float) env('STRIPE_USD_RATE', 280),
+    ],
+        'openrouteservice' => [
+        'key'    => env('ORS_API_KEY'),
+        'verify' => env('ORS_VERIFY_SSL', true),
+    ],
+        'sms' => [
+        'driver' => env('SMS_DRIVER', 'log'),   // "log" = write to a file only, "twilio" = really send
+        'verify' => env('SMS_VERIFY_SSL', true),
+        'twilio' => [
+            'sid'   => env('TWILIO_SID'),
+            'token' => env('TWILIO_TOKEN'),
+            'from'  => env('TWILIO_FROM'),
+        ],
+    ],
+        'sms' => [
+        'driver'       => env('SMS_DRIVER', 'log'),
+        'country_code' => env('SMS_COUNTRY_CODE', '92'),
+        'twilio' => [
+            'sid'   => env('TWILIO_SID'),
+            'token' => env('TWILIO_TOKEN'),
+            'from'  => env('TWILIO_FROM'),
+        ],
+        'http' => [
+            'url'      => env('SMS_HTTP_URL'),
+            'user'     => env('SMS_HTTP_USER'),
+            'password' => env('SMS_HTTP_PASSWORD'),
+            'sender'   => env('SMS_HTTP_SENDER', 'FreightLink'),
+        ],
+    ],
+        'slack' => [
+        // ... your existing settings ...
+    ],
+
+    'sms' => [
+        // ... the block above ...
+    ],
 
 ];
+

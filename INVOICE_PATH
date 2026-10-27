@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Invoice {{ $invoice->invoice_no }}</title>
+    <style>
+        @page { margin: 28px 32px; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1e293b; }
+        table { width: 100%; border-collapse: collapse; }
+        h1 { font-size: 24px; margin: 0; color: #ffffff; }
+        .band { background-color: #0f172a; color: #ffffff; padding: 16px 18px; vertical-align: top; }
+        .brand { font-size: 20px; font-weight: bold; color: #fb923c; }
+        .band-muted { color: #cbd5e1; }
+        .muted { color: #64748b; }
+        .label { font-size: 9px; text-transform: uppercase; color: #64748b; padding-bottom: 3px; }
+        .box { border: 1px solid #e2e8f0; padding: 10px 12px; vertical-align: top; }
+        .gap { width: 14px; }
+        th { text-align: left; background-color: #f1f5f9; padding: 7px 8px; font-size: 9px; text-transform: uppercase; color: #475569; }
+        td.item { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .total td { padding: 10px 8px; font-size: 14px; font-weight: bold; background-color: #fff7ed; border-top: 2px solid #ea580c; color: #9a3412; }
+        .paid-badge { border: 2px solid #4ade80; color: #4ade80; padding: 2px 10px; font-size: 14px; font-weight: bold; }
+        .test-note { margin-top: 6px; font-size: 9px; color: #b45309; }
+        .footer { margin-top: 18px; font-size: 9px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    </style>
+</head>
+<body>
+
+    {{-- Header --}}
+    <table>
+        <tr>
+            <td class="band" style="width: 55%;">
+                <div class="brand">FreightLink</div>
+                <div class="band-muted">Freight and cargo management</div>
+            </td>
+            <td class="band right">
+                <h1>INVOICE</h1>
+                <div><span class="band-muted">Invoice no:</span> <span class="bold">{{ $invoice->invoice_no }}</span></div>
+                <div><span class="band-muted">Date:</span> {{ $invoice->issued_at->format('d M Y') }}</div>
+                <div><span class="band-muted">Tracking ID:</span> <span class="bold">{{ $shipment->tracking_id }}</span></div>
+                @if ($shipment->paidPayment)
+                    <div style="margin-top: 8px;"><span class="paid-badge">PAID</span></div>
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {{-- Customer and shipment --}}
+    <table>
+        <tr>
+            <td class="box" style="width: 38%;">
+                <div class="label">Billed to</div>
+                <div class="bold">{{ $shipment->user->name }}</div>
+                <div>{{ $shipment->user->email }}</div>
+                <div>{{ $shipment->user->phone }}</div>
+            </td>
+            <td class="gap"></td>
+            <td class="box">
+                <div class="label">Shipment</div>
+                <div><span class="muted">From:</span> {{ $shipment->pickup_address }}</div>
+                <div><span class="muted">To:</span> {{ $shipment->delivery_address }}</div>
+                <div>
+                    <span class="muted">Distance:</span> {{ number_format($shipment->distance_km, 2) }} km
+                    &nbsp;&middot;&nbsp;
+                    <span class="muted">Weight:</span> {{ number_format($shipment->weight_kg, 2) }} kg
+                    (chargeable {{ number_format($shipment->chargeable_kg, 2) }} kg)
+                </div>
+                <div>
+                    <span class="muted">Service:</span> {{ $shipment->serviceType->name }}
+                    &nbsp;&middot;&nbsp;
+                    <span class="muted">Cargo:</span> {{ $shipment->cargoType->name }}
+                </div>
+                <div><span class="muted">Status:</span> {{ $shipment->status }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {{-- Charges --}}
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th class="right">Amount (Rs)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="item">Freight charges (base charge + weight + distance)</td>
+                <td class="item right">{{ number_format($shipment->subtotal, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="item">{{ $shipment->serviceType->name }} service (x{{ number_format($shipment->service_multiplier, 2) }})</td>
+                <td class="item right">{{ $serviceExtra < 0 ? '-' : '' }}{{ number_format(abs($serviceExtra), 2) }}</td>
+            </tr>
+            <tr>
+                <td class="item">{{ $shipment->cargoType->name }} cargo surcharge</td>
+                <td class="item right">{{ number_format($shipment->cargo_surcharge, 2) }}</td>
+            </tr>
+            @if ($shipment->discount_amount > 0)
+                <tr>
+                    <td class="item">Discount@if ($shipment->discount_code) ({{ $shipment->discount_code }}, {{ number_format($shipment->discount_percent, 2) }}%)@endif</td>
+                    <td class="item right">-{{ number_format($shipment->discount_amount, 2) }}</td>
+                </tr>
+            @endif
+            <tr>
+                <td class="item bold">Amount before tax</td>
+                <td class="item right bold">{{ number_format($taxable, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="item">Tax ({{ number_format($shipment->tax_percent, 2) }}%)</td>
+                <td class="item right">{{ number_format($shipment->tax_amount, 2) }}</td>
+            </tr>
+            <tr class="total">
+                <td>Total (Rs)</td>
+                <td class="right">{{ number_format($shipment->total_price, 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <br>
+
+    {{-- Payment --}}
+    <table>
+        <tr>
+            <td class="box">
+                <div class="label">Payment</div>
+                @if ($shipment->paidPayment)
+                    <div>
+                        <span class="bold" style="color: #15803d;">Paid</span> online (test mode)
+                        &nbsp;&middot;&nbsp;
+                        <span class="muted">Amount:</span> Rs {{ number_format($shipment->paidPayment->amount, 2) }}
+                    </div>
+                    <div>
+                        <span class="muted">Card:</span> {{ $shipment->paidPayment->card_brand }} ending {{ $shipment->paidPayment->card_last4 }}
+                        &nbsp;&middot;&nbsp;
+                        <span class="muted">Paid on:</span> {{ $shipment->paidPayment->paid_at->format('d M Y, H:i') }}
+                    </div>
+                    <div><span class="muted">Reference:</span> {{ $shipment->paidPayment->reference }}</div>
+                    <div class="test-note">This was a test transaction. No real money was taken.</div>
+                @else
+                    <div>No online payment has been recorded for this shipment. Payment is due on delivery.</div>
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    <br><br>
+
+    {{-- QR code --}}
+    <table>
+        <tr>
+            @if ($qr)
+                <td style="width: 120px; vertical-align: top;">
+                    <img src="{{ $qr }}" width="110" height="110" alt="QR code">
+                </td>
+            @endif
+            <td style="vertical-align: middle;">
+                <div class="bold">Track this shipment</div>
+                <div class="muted">Scan the QR code, or open this link:</div>
+                <div>{{ $trackUrl }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        This invoice was generated by FreightLink on {{ now()->format('d M Y, H:i') }}. All amounts are in Pakistani Rupees (Rs).
+    </div>
+
+</body>
+</html>

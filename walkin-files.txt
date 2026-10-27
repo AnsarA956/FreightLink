@@ -1,0 +1,298 @@
+==== WalkInBookingController ==== 
+<?php
+
+namespace App\Http\Controllers\Staff;
+
+use App\Http\Controllers\Controller;
+use App\Models\CargoType;
+use App\Models\ServiceType;
+use App\Models\User;
+use App\Services\DiscountService;
+use App\Services\DistanceService;
+use App\Services\PriceCalculator;
+use App\Services\ShipmentCreator;
+use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+class WalkInBookingController extends Controller
+{
+    // Step 1: the form (customer details + shipment details)
+    public function create()
+    {
+        return view('staff.walkin.create', [
+            'services'   => ServiceType::orderBy('id')->get(),
+            'cargoTypes' => CargoType::orderBy('id')->get(),
+        ]);
+    }
+
+    // Step 2: validate, check the code, get the distance, calculate the price, keep it in the session
+    public function estimate(
+        Request $request,
+        DistanceService $distance,
+        PriceCalculator $calculator,
+        DiscountService $discounts
+    ) {
+        $data = $request->validate([
+            'customer_name'    => ['required', 'string', 'max:255'],
+            // digits, spaces, + - and brackets, 10 to 20 characters (for example 0300 1234567)
+            'customer_phone'   => ['required', 'string', 'max:20', 'regex:/^[0-9+\s\-()]{10,20}$/'],
+            'customer_email'   => ['nullable', 'email', 'max:255'],
+            'pickup_address'   => ['required', 'string', 'min:5', 'max:255'],
+            'delivery_address' => ['required', 'string', 'min:5', 'max:255', 'different:pickup_address'],
+            'weight_kg'        => ['required', 'numeric', 'min:0.1', 'max:50000'],
+            'length_cm'        => ['required', 'numeric', 'min:1', 'max:1000'],
+            'width_cm'         => ['required', 'numeric', 'min:1', 'max:1000'],
+            'height_cm'        => ['required', 'numeric', 'min:1', 'max:1000'],
+            'cargo_type_id'    => ['required', 'exists:cargo_types,id'],
+            'service_type_id'  => ['required', 'exists:service_types,id'],
+            'discount_code'    => ['nullable', 'string', 'max:30'],
+        ]);
+
+        // A typed email must not belong to a staff, driver or admin account, or to a deactivated one
+        if (! empty($data['customer_email'])) {
+            $existing = User::where('email', $data['customer_email'])->first();
+
+            if ($existing && ($existing->role !== 'customer' || ! $existing->is_active)) {
+                return back()->withInput()->withErrors([
+                    'customer_email' => 'This email belongs to an account that cannot receive walk-in bookings. Use another email or leave it empty.',
+                ]);
+            }
+        }
+
+        // Check the code first, so a wrong code does not use up a map request
+        try {
+            $discountCode = $discounts->resolve($data['discount_code'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['discount_code' => $e->getMessage()]);
+        }
+
+        try {
+            $km = $distance->distanceKm($data['pickup_address'], $data['delivery_address']);
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['distance' => $e->getMessage()]);
+        }
+
+        $breakdown = $calculator->calculate(
+            (float) $data['weight_kg'],
+            (float) $data['length_cm'],
+            (float) $data['width_cm'],
+            (float) $data['height_cm'],
+            $km,
+            ServiceType::findOrFail($data['service_type_id']),
+            CargoType::findOrFail($data['cargo_type_id']),
+            $discountCode
+        );
+
+        session(['walkin_estimate' => [
+            'customer' => [
+                'name'  => $data['customer_name'],
+                'phone' => $data['customer_phone'],
+                'email' => $data['customer_email'] ?? null,
+            ],
+            'input' => Arr::only($data, [
+                'pickup_address', 'delivery_address', 'weight_kg', 'length_cm',
+                'width_cm', 'height_cm', 'cargo_type_id', 'service_type_id', 'discount_code',
+            ]),
+            'breakdown' => $breakdown,
+        ]]);
+
+        return redirect()->route('staff.walkin.review');
+    }
+
+    // Step 3: show the price breakdown
+    public function review()
+    {
+        $estimate = session('walkin_estimate');
+
+        if (! $estimate) {
+            return redirect()->route('staff.walkin.create');
+        }
+
+        return view('staff.walkin.review', [
+            'customer' => $estimate['customer'],
+            'data'     => $estimate['input'],
+            'b'        => $estimate['breakdown'],
+        ]);
+    }
+
+    // Step 4: confirm. Find or create the customer, then save the shipment (REQ-10)
+    public function store(ShipmentCreator $creator)
+    {
+        $estimate = session('walkin_estimate');
+
+        if (! $estimate) {
+            return redirect()->route('staff.walkin.create')
+                ->withErrors(['session' => 'The price estimate expired. Please calculate the price again.']);
+        }
+
+        $c          = $estimate['customer'];
+        $newAccount = false;
+
+        try {
+            $shipment = DB::transaction(function () use ($estimate, $c, $creator, &$newAccount) {
+                $customer = ! empty($c['email']) ? User::where('email', $c['email'])->first() : null;
+
+                if ($customer && ($customer->role !== 'customer' || ! $customer->is_active)) {
+                    throw new RuntimeException('This email belongs to an account that cannot receive walk-in bookings.');
+                }
+
+                // An existing customer without a phone number gets the one entered at the desk,
+                // so the SMS notifications can reach them
+                if ($customer && empty($customer->phone)) {
+                    $customer->update(['phone' => $c['phone']]);
+                }
+
+                if (! $customer) {
+                    $newAccount = true;
+
+                    // A walk-in customer without an email gets a placeholder address and an
+                    // unknown random password, so nobody can log in to this account.
+                    $customer = User::create([
+                        'name'      => $c['name'],
+                        'email'     => $c['email'] ?: 'walkin-' . Str::lower(Str::random(10)) . '@freightlink.local',
+                        'phone'     => $c['phone'],
+                        'password'  => Str::random(40),
+                        'role'      => 'customer',
+                        'is_active' => true,
+                    ]);
+                }
+
+                return $creator->create(
+                    $customer,
+                    $estimate['input'],
+                    $estimate['breakdown'],
+                    'Walk-in booking created by staff member ' . auth()->user()->name
+                );
+            });
+        } catch (RuntimeException $e) {
+            return redirect()->route('staff.walkin.create')->withErrors(['booking' => $e->getMessage()]);
+        }
+
+        session()->forget('walkin_estimate');
+
+        return redirect()->route('admin.shipments.show', $shipment)
+            ->with('success', 'Walk-in booking confirmed. Tracking ID: ' . $shipment->tracking_id
+                . ($newAccount ? ' (a new customer record was created).' : '.'));
+    }
+}==== walk-in form ==== 
+@extends('layouts.app')
+
+@section('title', 'Walk-in Booking - FreightLink')
+
+@php
+    // If staff came back from the price page, refill the form
+    $draft = session('walkin_estimate.input', []);
+    $cust  = session('walkin_estimate.customer', []);
+@endphp
+
+@section('content')
+<div class="max-w-2xl bg-white rounded-xl shadow p-6">
+    <h1 class="text-2xl font-bold mb-1">Walk-in booking</h1>
+    <p class="text-sm text-slate-500 mb-4">Book a shipment for a customer at the counter. You will see the full price before anything is booked.</p>
+
+    @if ($errors->any())
+        <div class="mb-4 p-3 rounded bg-red-100 text-red-800 text-sm">
+            @foreach ($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('staff.walkin.estimate') }}" class="space-y-4">
+        @csrf
+
+        <h2 class="font-bold pt-2">Customer</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Full name</label>
+                <input type="text" name="customer_name" value="{{ old('customer_name', $cust['name'] ?? '') }}"
+                       class="w-full border rounded px-3 py-2" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Phone</label>
+                <input type="text" name="customer_phone" value="{{ old('customer_phone', $cust['phone'] ?? '') }}"
+                       class="w-full border rounded px-3 py-2" required>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Email (optional)</label>
+            <input type="email" name="customer_email" value="{{ old('customer_email', $cust['email'] ?? '') }}"
+                   class="w-full border rounded px-3 py-2">
+            <p class="text-xs text-slate-500 mt-1">If this email already belongs to a customer, the shipment is added to that customer's account.</p>
+        </div>
+
+        <h2 class="font-bold pt-2">Shipment</h2>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Pickup address</label>
+            <input type="text" name="pickup_address" placeholder="e.g. Clock Tower, Faisalabad"
+                   value="{{ old('pickup_address', $draft['pickup_address'] ?? '') }}"
+                   class="w-full border rounded px-3 py-2" required>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Delivery address</label>
+            <input type="text" name="delivery_address" placeholder="e.g. Liberty Market, Lahore"
+                   value="{{ old('delivery_address', $draft['delivery_address'] ?? '') }}"
+                   class="w-full border rounded px-3 py-2" required>
+            <p class="text-xs text-slate-500 mt-1">Include the city name so the map service finds the right place.</p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Weight (kg)</label>
+            <input type="number" step="0.01" min="0.1" name="weight_kg"
+                   value="{{ old('weight_kg', $draft['weight_kg'] ?? '') }}"
+                   class="w-full border rounded px-3 py-2" required>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Package size (cm)</label>
+            <div class="grid grid-cols-3 gap-2">
+                <input type="number" step="0.01" min="1" name="length_cm" placeholder="Length"
+                       value="{{ old('length_cm', $draft['length_cm'] ?? '') }}" class="border rounded px-3 py-2" required>
+                <input type="number" step="0.01" min="1" name="width_cm" placeholder="Width"
+                       value="{{ old('width_cm', $draft['width_cm'] ?? '') }}" class="border rounded px-3 py-2" required>
+                <input type="number" step="0.01" min="1" name="height_cm" placeholder="Height"
+                       value="{{ old('height_cm', $draft['height_cm'] ?? '') }}" class="border rounded px-3 py-2" required>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Cargo type</label>
+                <select name="cargo_type_id" class="w-full border rounded px-3 py-2" required>
+                    @foreach ($cargoTypes as $cargo)
+                        <option value="{{ $cargo->id }}"
+                            @selected((string) old('cargo_type_id', $draft['cargo_type_id'] ?? '') === (string) $cargo->id)>
+                            {{ $cargo->name }}@if ($cargo->surcharge > 0) (+Rs {{ number_format($cargo->surcharge, 2) }})@endif
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Service type</label>
+                <select name="service_type_id" class="w-full border rounded px-3 py-2" required>
+                    @foreach ($services as $service)
+                        <option value="{{ $service->id }}"
+                            @selected((string) old('service_type_id', $draft['service_type_id'] ?? '') === (string) $service->id)>
+                            {{ $service->name }} (x{{ number_format($service->multiplier, 2) }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Discount code (optional)</label>
+            <input type="text" name="discount_code" value="{{ old('discount_code', $draft['discount_code'] ?? '') }}"
+                   placeholder="e.g. WELCOME10" class="w-full border rounded px-3 py-2 uppercase">
+        </div>
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Calculate price</button>
+    </form>
+</div>
+@endsection

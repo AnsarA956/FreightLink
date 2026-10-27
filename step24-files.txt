@@ -1,0 +1,202 @@
+==== ShipmentNotifier ==== 
+<?php
+
+namespace App\Services;
+
+use App\Mail\ShipmentStatusMail;
+use App\Models\NotificationLog;
+use App\Models\Shipment;
+use App\Models\StatusLog;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Throwable;
+
+class ShipmentNotifier
+{
+    // Which status change sends which notification (REQ-38)
+    private const STATUS_EVENTS = [
+        'Booked'     => 'booked',
+        'Picked Up'  => 'dispatched',
+        'In Transit' => 'dispatched',
+        'Delivered'  => 'delivered',
+    ];
+
+    // A problem with email or SMS must never break a booking or a status update
+    public function handle(StatusLog $log): void
+    {
+        try {
+            $this->process($log);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function process(StatusLog $log): void
+    {
+        $event = self::STATUS_EVENTS[$log->status] ?? null;
+
+        if ($event === null) {
+            return;
+        }
+
+        $shipment = Shipment::with(['user', 'serviceType'])->find($log->shipment_id);
+
+        if (! $shipment || ! $shipment->user) {
+            return;
+        }
+
+        // Each channel runs on its own: a failed email must not stop the SMS
+        foreach (['sendEmail', 'sendSms'] as $method) {
+            try {
+                $this->$method($shipment, $event);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
+    // One notification per channel, event and shipment (a failed attempt may be tried again later)
+    private function alreadyDone(Shipment $shipment, string $event, string $channel): bool
+    {
+        return NotificationLog::where('shipment_id', $shipment->id)
+            ->where('event', $event)
+            ->where('channel', $channel)
+            ->whereIn('status', ['sent', 'skipped'])
+            ->exists();
+    }
+
+    private function sendEmail(Shipment $shipment, string $event): void
+    {
+        if ($this->alreadyDone($shipment, $event, 'email')) {
+            return;
+        }
+
+        $user    = $shipment->user;
+        $subject = $this->subject($event, $shipment);
+
+        $record = [
+            'shipment_id' => $shipment->id,
+            'user_id'     => $user->id,
+            'channel'     => 'email',
+            'event'       => $event,
+            'recipient'   => $user->email,
+            'subject'     => $subject,
+        ];
+
+        // Walk-in customers without a real email cannot be emailed
+        if (str_ends_with($user->email, '@freightlink.local')) {
+            NotificationLog::create($record + [
+                'status' => 'skipped',
+                'error'  => 'Walk-in customer without an email address.',
+            ]);
+
+            return;
+        }
+
+        try {
+            Mail::to($user->email)->send(new ShipmentStatusMail($shipment, $event, $subject));
+
+            // REQ-40: record every notification that is sent
+            NotificationLog::create($record + ['status' => 'sent', 'sent_at' => now()]);
+        } catch (Throwable $e) {
+            report($e);
+
+            NotificationLog::create($record + [
+                'status' => 'failed',
+                'error'  => Str::limit($e->getMessage(), 500),
+            ]);
+        }
+    }
+
+    private function sendSms(Shipment $shipment, string $event): void
+    {
+        if ($this->alreadyDone($shipment, $event, 'sms')) {
+            return;
+        }
+
+        $user = $shipment->user;
+        $sms  = app(SmsService::class);
+        $text = $this->smsText($event, $shipment);
+
+        $number = $sms->normalize($user->phone ?? null);
+
+        $record = [
+            'shipment_id' => $shipment->id,
+            'user_id'     => $user->id,
+            'channel'     => 'sms',
+            'event'       => $event,
+            'recipient'   => $number ?? '-',
+            'subject'     => Str::limit($text, 250, ''),   // the SMS text is stored here
+        ];
+
+        // Walk-in customers are still reached by SMS if the desk entered a phone number
+        if ($number === null) {
+            NotificationLog::create($record + [
+                'status' => 'skipped',
+                'error'  => 'No valid phone number.',
+            ]);
+
+            return;
+        }
+
+        try {
+            $sms->send($number, $text);
+
+            NotificationLog::create($record + ['status' => 'sent', 'sent_at' => now()]);
+        } catch (Throwable $e) {
+            report($e);
+
+            NotificationLog::create($record + [
+                'status' => 'failed',
+                'error'  => Str::limit($e->getMessage(), 500),
+            ]);
+        }
+    }
+
+    private function subject(string $event, Shipment $shipment): string
+    {
+        return match ($event) {
+            'booked'     => 'Booking confirmed - ' . $shipment->tracking_id,
+            'dispatched' => 'Your shipment is on its way - ' . $shipment->tracking_id,
+            'delivered'  => 'Your shipment was delivered - ' . $shipment->tracking_id,
+        };
+    }
+
+    // Keep each text under 160 characters so it is one SMS
+    private function smsText(string $event, Shipment $shipment): string
+    {
+        $id = $shipment->tracking_id;
+
+        return match ($event) {
+            'booked'     => "FreightLink: shipment {$id} is booked. Total Rs " . number_format($shipment->total_price, 2) . '.',
+            'dispatched' => "FreightLink: shipment {$id} is on its way ({$shipment->status}).",
+            'delivered'  => "FreightLink: shipment {$id} was delivered. Thank you for choosing us.",
+        };
+    }
+}==== NotificationLog model ==== 
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class NotificationLog extends Model
+{
+    protected $fillable = [
+        'shipment_id', 'user_id', 'channel', 'event',
+        'recipient', 'subject', 'status', 'error', 'sent_at',
+    ];
+
+    protected $casts = [
+        'sent_at' => 'datetime',
+    ];
+
+    public function shipment(): BelongsTo
+    {
+        return $this->belongsTo(Shipment::class);
+    }
+}==== where it is called ==== 
+app\Models\StatusLog.php:5:use App\Services\ShipmentNotifier;
+app\Models\StatusLog.php:21:            $send       = fn () => app(ShipmentNotifier::class)->handle($log);
+app\Services\ShipmentNotifier.php:13:class ShipmentNotifier

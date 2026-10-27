@@ -1,0 +1,303 @@
+==== Shipment.php ==== 
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Shipment extends Model
+{
+    public const STATUSES = [
+        'Pending Payment', 'Booked', 'Assigned', 'Picked Up',
+        'In Transit', 'Delivered', 'Delivery Failed', 'Cancelled', 'Closed',
+    ];
+
+    protected $fillable = [
+        'tracking_id', 'user_id', 'driver_id', 'vehicle_id',
+        'service_type_id', 'cargo_type_id',
+        'pickup_address', 'delivery_address',
+        'weight_kg', 'length_cm', 'width_cm', 'height_cm',
+        'volumetric_kg', 'chargeable_kg', 'distance_km',
+        'subtotal', 'service_multiplier', 'cargo_surcharge', 'discount_amount',
+                'tax_percent', 'tax_amount', 'total_price',
+        'discount_code_id', 'discount_code', 'discount_percent',
+        'status',
+    ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function driver(): BelongsTo
+    {
+        return $this->belongsTo(Driver::class);
+    }
+
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class);
+    }
+
+    public function serviceType(): BelongsTo
+    {
+        return $this->belongsTo(ServiceType::class);
+    }
+
+    public function cargoType(): BelongsTo
+    {
+        return $this->belongsTo(CargoType::class);
+    }
+
+    public function statusLogs(): HasMany
+    {
+        return $this->hasMany(StatusLog::class)->orderBy('changed_at')->orderBy('id');
+    }
+}==== Driver.php ==== 
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Driver extends Model
+{
+    public const STATUSES = ['Available', 'On Delivery', 'Off Duty'];
+
+    protected $fillable = ['user_id', 'license_no', 'status'];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+}==== Customer ShipmentController.php ==== 
+<?php
+
+namespace App\Http\Controllers\Customer;
+
+use App\Http\Controllers\Controller;
+use App\Models\Shipment;
+
+class ShipmentController extends Controller
+{
+    // REQ-11: the customer's booking history
+    public function index()
+    {
+        $shipments = Shipment::with('serviceType')
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->get();
+
+        return view('customer.shipments.index', compact('shipments'));
+    }
+
+    public function show(Shipment $shipment)
+    {
+        // A customer may only open their own shipments
+        abort_unless($shipment->user_id === auth()->id(), 403);
+
+        $shipment->load(['serviceType', 'cargoType', 'statusLogs']);
+
+        return view('customer.shipments.show', compact('shipment'));
+    }
+}==== customer shipments show ==== 
+@extends('layouts.app')
+
+@section('title', $shipment->tracking_id . ' - FreightLink')
+
+@section('content')
+<div class="max-w-3xl space-y-6">
+
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="flex items-center justify-between mb-3">
+            <h1 class="text-2xl font-bold">{{ $shipment->tracking_id }}</h1>
+                        <div class="flex items-center gap-2">
+                @if ($shipment->status === 'Booked' && ! $shipment->driver_id)
+                    <form method="POST" action="{{ route('shipments.cancel', $shipment) }}"
+                          onsubmit="return confirm('Cancel this booking? This cannot be undone.')">
+                        @csrf
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">Cancel booking</button>
+                    </form>
+                @endif
+                <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm">{{ $shipment->status }}</span>
+            </div>
+
+        </div>
+
+        <div class="text-sm space-y-1">
+            <div><span class="text-slate-500">From:</span> {{ $shipment->pickup_address }}</div>
+            <div><span class="text-slate-500">To:</span> {{ $shipment->delivery_address }}</div>
+            <div><span class="text-slate-500">Distance:</span> {{ number_format($shipment->distance_km, 2) }} km</div>
+            <div><span class="text-slate-500">Weight:</span> {{ number_format($shipment->weight_kg, 2) }} kg (chargeable {{ number_format($shipment->chargeable_kg, 2) }} kg)</div>
+            <div><span class="text-slate-500">Service:</span> {{ $shipment->serviceType->name }}</div>
+            <div><span class="text-slate-500">Cargo:</span> {{ $shipment->cargoType->name }}</div>
+                        <div><span class="text-slate-500">Tracking link:</span>
+                <a href="{{ route('track.show', $shipment->tracking_id) }}" class="text-blue-600 underline">{{ route('track.show', $shipment->tracking_id) }}</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6">
+            <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-bold">Price</h2>
+            @if (in_array($shipment->status, ['Delivered', 'Closed']))
+                <a href="{{ route('invoice.download', $shipment) }}"
+                   class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">Download invoice (PDF)</a>
+            @else
+                <span class="text-xs text-slate-500">The invoice is available after delivery.</span>
+            @endif
+        </div>
+        <table class="w-full text-sm">
+            <tbody>
+                <tr class="border-t">
+                    <td class="py-2">Subtotal</td>
+                    <td class="py-2 text-right">Rs {{ number_format($shipment->subtotal, 2) }}</td>
+                </tr>
+                <tr class="border-t">
+                    <td class="py-2">Service multiplier</td>
+                    <td class="py-2 text-right">× {{ number_format($shipment->service_multiplier, 2) }}</td>
+                </tr>
+                <tr class="border-t">
+                    <td class="py-2">Cargo surcharge</td>
+                    <td class="py-2 text-right">Rs {{ number_format($shipment->cargo_surcharge, 2) }}</td>
+                </tr>
+                @if ($shipment->discount_amount > 0)
+                    <tr class="border-t">
+                                            <td class="py-2">Discount@if ($shipment->discount_code) ({{ $shipment->discount_code }}, {{ number_format($shipment->discount_percent, 2) }}%)@endif</td>
+                        <td class="py-2 text-right">- Rs {{ number_format($shipment->discount_amount, 2) }}</td>
+                    </tr>
+                @endif
+                <tr class="border-t">
+                    <td class="py-2">Tax ({{ number_format($shipment->tax_percent, 2) }}%)</td>
+                    <td class="py-2 text-right">Rs {{ number_format($shipment->tax_amount, 2) }}</td>
+                </tr>
+                <tr class="border-t-2 font-bold">
+                    <td class="py-2">Total</td>
+                    <td class="py-2 text-right">Rs {{ number_format($shipment->total_price, 2) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-lg font-bold mb-3">Status history</h2>
+        <ol class="border-l-2 border-slate-200 ml-2 space-y-4">
+            @foreach ($shipment->statusLogs as $log)
+                <li class="pl-4 relative">
+                    <span class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-blue-600"></span>
+                    <div class="font-medium text-sm">{{ $log->status }}</div>
+                    <div class="text-xs text-slate-500">{{ $log->changed_at->format('d M Y, H:i') }}@if ($log->note) · {{ $log->note }}@endif</div>
+                </li>
+            @endforeach
+        </ol>
+    </div>
+
+    <a href="{{ route('customer.shipments.index') }}" class="inline-block text-blue-600 underline text-sm">← Back to my shipments</a>
+</div>
+@endsection==== admin drivers index ==== 
+@extends('layouts.app')
+
+@section('title', 'Drivers - FreightLink')
+
+@section('content')
+<div class="max-w-5xl bg-white rounded-xl shadow p-6">
+    <h1 class="text-2xl font-bold mb-1">Drivers</h1>
+    <p class="text-sm text-slate-500 mb-4">Each driver gets a login account. Deactivating blocks the driver from logging in but keeps their records.</p>
+
+    @if ($errors->any())
+        <div class="mb-4 p-3 rounded bg-red-100 text-red-800 text-sm">
+            @foreach ($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
+
+    {{-- Add new --}}
+    <form method="POST" action="{{ route('admin.drivers.store') }}" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        @csrf
+        <div>
+            <label class="block text-sm font-medium mb-1">Full name</label>
+            <input type="text" name="name" value="{{ old('name') }}" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Email</label>
+            <input type="email" name="email" value="{{ old('email') }}" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Phone</label>
+            <input type="text" name="phone" value="{{ old('phone') }}" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Password (min 8)</label>
+            <input type="password" name="password" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Licence no.</label>
+            <input type="text" name="license_no" value="{{ old('license_no') }}" class="w-full border rounded px-3 py-2" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Status</label>
+            <select name="status" class="w-full border rounded px-3 py-2" required>
+                @foreach (\App\Models\Driver::STATUSES as $status)
+                    <option value="{{ $status }}">{{ $status }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="md:col-span-3">
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Add driver</button>
+        </div>
+    </form>
+
+    {{-- Existing list --}}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-slate-500">
+                    <th class="py-2">Name</th>
+                    <th class="py-2">Email</th>
+                    <th class="py-2">Phone</th>
+                    <th class="py-2">Licence</th>
+                    <th class="py-2">Status</th>
+                    <th class="py-2">Account</th>
+                    <th class="py-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($drivers as $driver)
+                    <tr class="border-t">
+                        <td class="py-2 pr-2">{{ $driver->user->name }}</td>
+                        <td class="py-2 pr-2">{{ $driver->user->email }}</td>
+                        <td class="py-2 pr-2">{{ $driver->user->phone }}</td>
+                        <td class="py-2 pr-2">{{ $driver->license_no }}</td>
+                        <td class="py-2 pr-2">{{ $driver->status }}</td>
+                        <td class="py-2 pr-2">
+                            @if ($driver->user->is_active)
+                                <span class="text-green-700">Active</span>
+                            @else
+                                <span class="text-red-700">Deactivated</span>
+                            @endif
+                        </td>
+                        <td class="py-2 whitespace-nowrap">
+                            <a href="{{ route('admin.drivers.edit', $driver) }}"
+                               class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded inline-block">Edit</a>
+                            <form method="POST" action="{{ route('admin.drivers.toggle', $driver) }}" class="inline"
+                                  onsubmit="return confirm('Change this driver account status?')">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded">
+                                    {{ $driver->user->is_active ? 'Deactivate' : 'Activate' }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="7" class="py-4 text-slate-500">No drivers yet.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+@endsection
