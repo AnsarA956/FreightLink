@@ -12,8 +12,8 @@ class ShipmentLocation extends Model
     protected function casts(): array
     {
         return [
-            'latitude'   => 'float',
-            'longitude'  => 'float',
+            'latitude' => 'float',
+            'longitude' => 'float',
             'accuracy_m' => 'integer',
         ];
     }

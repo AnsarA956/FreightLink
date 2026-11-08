@@ -31,11 +31,11 @@ class RouteController extends Controller
             ->get();
 
         // Where does the driver start? 1) the browser position, 2) the last shared position, 3) automatic
-        $start      = null;
+        $start = null;
         $startLabel = 'The best first stop was chosen automatically.';
 
         if (isset($data['lat'], $data['lng'])) {
-            $start      = [(float) $data['lat'], (float) $data['lng']];
+            $start = [(float) $data['lat'], (float) $data['lng']];
             $startLabel = 'Starting from your current position.';
         } else {
             $saved = ShipmentLocation::where('driver_id', $driver->id)
@@ -44,7 +44,7 @@ class RouteController extends Controller
                 ->first();
 
             if ($saved) {
-                $start      = [(float) $saved->latitude, (float) $saved->longitude];
+                $start = [(float) $saved->latitude, (float) $saved->longitude];
                 $startLabel = 'Starting from your last shared position.';
             }
         }
@@ -52,8 +52,8 @@ class RouteController extends Controller
         $result = $optimizer->optimize($shipments, $start);
 
         return view('driver.route', [
-            'result'      => $result,
-            'startLabel'  => $startLabel,
+            'result' => $result,
+            'startLabel' => $startLabel,
             'shipmentCount' => $shipments->count(),
         ]);
     }

@@ -22,7 +22,7 @@ class WalkInBookingController extends Controller
     public function create()
     {
         return view('staff.walkin.create', [
-            'services'   => ServiceType::orderBy('id')->get(),
+            'services' => ServiceType::orderBy('id')->get(),
             'cargoTypes' => CargoType::orderBy('id')->get(),
         ]);
     }
@@ -35,19 +35,19 @@ class WalkInBookingController extends Controller
         DiscountService $discounts
     ) {
         $data = $request->validate([
-            'customer_name'    => ['required', 'string', 'max:255'],
+            'customer_name' => ['required', 'string', 'max:255'],
             // digits, spaces, + - and brackets, 10 to 20 characters (for example 0300 1234567)
-            'customer_phone'   => ['required', 'string', 'max:20', 'regex:/^[0-9+\s\-()]{10,20}$/'],
-            'customer_email'   => ['nullable', 'email', 'max:255'],
-            'pickup_address'   => ['required', 'string', 'min:5', 'max:255'],
+            'customer_phone' => ['required', 'string', 'max:20', 'regex:/^[0-9+\s\-()]{10,20}$/'],
+            'customer_email' => ['nullable', 'email', 'max:255'],
+            'pickup_address' => ['required', 'string', 'min:5', 'max:255'],
             'delivery_address' => ['required', 'string', 'min:5', 'max:255', 'different:pickup_address'],
-            'weight_kg'        => ['required', 'numeric', 'min:0.1', 'max:50000'],
-            'length_cm'        => ['required', 'numeric', 'min:1', 'max:1000'],
-            'width_cm'         => ['required', 'numeric', 'min:1', 'max:1000'],
-            'height_cm'        => ['required', 'numeric', 'min:1', 'max:1000'],
-            'cargo_type_id'    => ['required', 'exists:cargo_types,id'],
-            'service_type_id'  => ['required', 'exists:service_types,id'],
-            'discount_code'    => ['nullable', 'string', 'max:30'],
+            'weight_kg' => ['required', 'numeric', 'min:0.1', 'max:50000'],
+            'length_cm' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'width_cm' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'height_cm' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'cargo_type_id' => ['required', 'exists:cargo_types,id'],
+            'service_type_id' => ['required', 'exists:service_types,id'],
+            'discount_code' => ['nullable', 'string', 'max:30'],
         ]);
 
         // A typed email must not belong to a staff, driver or admin account, or to a deactivated one
@@ -70,7 +70,7 @@ class WalkInBookingController extends Controller
 
         try {
             $route = $distance->route($data['pickup_address'], $data['delivery_address']);
-            $km    = $route['km'];
+            $km = $route['km'];
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['distance' => $e->getMessage()]);
         }
@@ -87,14 +87,14 @@ class WalkInBookingController extends Controller
         );
         // Keep the coordinates with the price, so the map can be shown and saved
         $breakdown = array_merge($breakdown, [
-            'pickup_lat'   => $route['pickup_lat'],
-            'pickup_lng'   => $route['pickup_lng'],
+            'pickup_lat' => $route['pickup_lat'],
+            'pickup_lng' => $route['pickup_lng'],
             'delivery_lat' => $route['delivery_lat'],
             'delivery_lng' => $route['delivery_lng'],
         ]);
         session(['walkin_estimate' => [
             'customer' => [
-                'name'  => $data['customer_name'],
+                'name' => $data['customer_name'],
                 'phone' => $data['customer_phone'],
                 'email' => $data['customer_email'] ?? null,
             ],
@@ -119,8 +119,8 @@ class WalkInBookingController extends Controller
 
         return view('staff.walkin.review', [
             'customer' => $estimate['customer'],
-            'data'     => $estimate['input'],
-            'b'        => $estimate['breakdown'],
+            'data' => $estimate['input'],
+            'b' => $estimate['breakdown'],
         ]);
     }
 
@@ -134,7 +134,7 @@ class WalkInBookingController extends Controller
                 ->withErrors(['session' => 'The price estimate expired. Please calculate the price again.']);
         }
 
-        $c          = $estimate['customer'];
+        $c = $estimate['customer'];
         $newAccount = false;
 
         try {
@@ -157,11 +157,11 @@ class WalkInBookingController extends Controller
                     // A walk-in customer without an email gets a placeholder address and an
                     // unknown random password, so nobody can log in to this account.
                     $customer = User::create([
-                        'name'      => $c['name'],
-                        'email'     => $c['email'] ?: 'walkin-' . Str::lower(Str::random(10)) . '@freightlink.local',
-                        'phone'     => $c['phone'],
-                        'password'  => Str::random(40),
-                        'role'      => 'customer',
+                        'name' => $c['name'],
+                        'email' => $c['email'] ?: 'walkin-'.Str::lower(Str::random(10)).'@freightlink.local',
+                        'phone' => $c['phone'],
+                        'password' => Str::random(40),
+                        'role' => 'customer',
                         'is_active' => true,
                     ]);
                 }
@@ -170,7 +170,7 @@ class WalkInBookingController extends Controller
                     $customer,
                     $estimate['input'],
                     $estimate['breakdown'],
-                    'Walk-in booking created by staff member ' . auth()->user()->name
+                    'Walk-in booking created by staff member '.auth()->user()->name
                 );
             });
         } catch (RuntimeException $e) {
@@ -180,7 +180,7 @@ class WalkInBookingController extends Controller
         session()->forget('walkin_estimate');
 
         return redirect()->route('admin.shipments.show', $shipment)
-            ->with('success', 'Walk-in booking confirmed. Tracking ID: ' . $shipment->tracking_id
-                . ($newAccount ? ' (a new customer record was created).' : '.'));
+            ->with('success', 'Walk-in booking confirmed. Tracking ID: '.$shipment->tracking_id
+                .($newAccount ? ' (a new customer record was created).' : '.'));
     }
 }

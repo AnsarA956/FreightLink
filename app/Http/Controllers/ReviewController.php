@@ -25,16 +25,16 @@ class ReviewController extends Controller
         }
 
         $data = $request->validate([
-            'rating'  => ['required', 'integer', 'between:1,5'],
+            'rating' => ['required', 'integer', 'between:1,5'],
             'comment' => ['nullable', 'string', 'max:1000'],
         ]);
 
         Review::create([
             'shipment_id' => $shipment->id,
-            'user_id'     => $user->id,
-            'driver_id'   => $shipment->driver_id,
-            'rating'      => $data['rating'],
-            'comment'     => $data['comment'] ?? null,
+            'user_id' => $user->id,
+            'driver_id' => $shipment->driver_id,
+            'rating' => $data['rating'],
+            'comment' => $data['comment'] ?? null,
         ]);
 
         return back()->with('success', 'Thank you for your rating.');

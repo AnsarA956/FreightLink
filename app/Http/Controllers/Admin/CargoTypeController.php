@@ -18,15 +18,15 @@ class CargoTypeController extends Controller
 
         return view('admin.cargo-types.index', [
             'cargoTypes' => $cargoTypes,
-            'surcharge'  => self::SURCHARGE,
+            'surcharge' => self::SURCHARGE,
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'            => ['required', 'string', 'max:100', 'unique:cargo_types,name'],
-            self::SURCHARGE   => ['required', 'numeric', 'min:0'],
+            'name' => ['required', 'string', 'max:100', 'unique:cargo_types,name'],
+            self::SURCHARGE => ['required', 'numeric', 'min:0'],
         ]);
 
         CargoType::create($data);
@@ -37,8 +37,8 @@ class CargoTypeController extends Controller
     public function update(Request $request, CargoType $cargo_type)
     {
         $data = $request->validate([
-            'name'            => ['required', 'string', 'max:100', Rule::unique('cargo_types', 'name')->ignore($cargo_type->id)],
-            self::SURCHARGE   => ['required', 'numeric', 'min:0'],
+            'name' => ['required', 'string', 'max:100', Rule::unique('cargo_types', 'name')->ignore($cargo_type->id)],
+            self::SURCHARGE => ['required', 'numeric', 'min:0'],
         ]);
 
         $cargo_type->update($data);

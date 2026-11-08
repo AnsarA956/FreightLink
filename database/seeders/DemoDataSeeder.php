@@ -53,20 +53,29 @@ class DemoDataSeeder extends Seeder
 
     public function run(PriceCalculator $calculator, ShipmentCreator $creator): void
     {
-        $drivers  = Driver::all();
+        $drivers = Driver::all();
         $vehicles = Vehicle::all();
         $services = ServiceType::all();
-        $cargos   = CargoType::all();
+        $cargos = CargoType::all();
 
         // Stop with a clear message if something the demo needs does not exist yet
         $missing = [];
-        if ($drivers->count() < 2)  { $missing[] = 'at least 2 drivers (admin, Drivers page)'; }
-        if ($vehicles->count() < 2) { $missing[] = 'at least 2 vehicles (admin, Vehicles page)'; }
-        if ($services->isEmpty())   { $missing[] = 'service types'; }
-        if ($cargos->isEmpty())     { $missing[] = 'cargo types'; }
+        if ($drivers->count() < 2) {
+            $missing[] = 'at least 2 drivers (admin, Drivers page)';
+        }
+        if ($vehicles->count() < 2) {
+            $missing[] = 'at least 2 vehicles (admin, Vehicles page)';
+        }
+        if ($services->isEmpty()) {
+            $missing[] = 'service types';
+        }
+        if ($cargos->isEmpty()) {
+            $missing[] = 'cargo types';
+        }
 
         if ($missing) {
-            $this->command->error('Please add first: ' . implode(', ', $missing));
+            $this->command->error('Please add first: '.implode(', ', $missing));
+
             return;
         }
 
@@ -78,11 +87,11 @@ class DemoDataSeeder extends Seeder
 
         foreach (self::CUSTOMERS as $i => $name) {
             $customers->push(User::create([
-                'name'      => $name,
-                'email'     => 'demo-customer-' . ($i + 1) . '@freightlink.test',
-                'phone'     => '0300100' . str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT),
-                'password'  => 'Demo@12345',
-                'role'      => 'customer',
+                'name' => $name,
+                'email' => 'demo-customer-'.($i + 1).'@freightlink.test',
+                'phone' => '0300100'.str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT),
+                'password' => 'Demo@12345',
+                'role' => 'customer',
                 'is_active' => true,
             ]));
         }
@@ -93,16 +102,16 @@ class DemoDataSeeder extends Seeder
             // Two different cities
             $pair = collect(self::CITIES)->shuffle()->take(2)->values();
             $from = $pair[0];
-            $to   = $pair[1];
+            $to = $pair[1];
 
-            $km     = round($this->roadKm($from, $to), 2);
+            $km = round($this->roadKm($from, $to), 2);
             $weight = random_int(10, 400) / 10;
             $length = random_int(10, 60);
-            $width  = random_int(10, 60);
+            $width = random_int(10, 60);
             $height = random_int(10, 60);
 
             $service = $services->random();
-            $cargo   = $cargos->random();
+            $cargo = $cargos->random();
 
             $breakdown = $calculator->calculate(
                 (float) $weight, (float) $length, (float) $width, (float) $height,
@@ -110,21 +119,21 @@ class DemoDataSeeder extends Seeder
             );
 
             $breakdown = array_merge($breakdown, [
-                'pickup_lat'   => $from[1],
-                'pickup_lng'   => $from[2],
+                'pickup_lat' => $from[1],
+                'pickup_lng' => $from[2],
                 'delivery_lat' => $to[1],
                 'delivery_lng' => $to[2],
             ]);
 
             $input = [
-                'service_type_id'  => $service->id,
-                'cargo_type_id'    => $cargo->id,
-                'pickup_address'   => collect(self::STREETS)->random() . ', ' . $from[0],
-                'delivery_address' => collect(self::STREETS)->random() . ', ' . $to[0],
-                'weight_kg'        => $weight,
-                'length_cm'        => $length,
-                'width_cm'         => $width,
-                'height_cm'        => $height,
+                'service_type_id' => $service->id,
+                'cargo_type_id' => $cargo->id,
+                'pickup_address' => collect(self::STREETS)->random().', '.$from[0],
+                'delivery_address' => collect(self::STREETS)->random().', '.$to[0],
+                'weight_kg' => $weight,
+                'length_cm' => $length,
+                'width_cm' => $width,
+                'height_cm' => $height,
             ];
 
             $customer = $customers->random();
@@ -150,10 +159,10 @@ class DemoDataSeeder extends Seeder
             if ($target === 'Delivered' && random_int(1, 100) <= 70) {
                 $review = new Review([
                     'shipment_id' => $shipment->id,
-                    'user_id'     => $customer->id,
-                    'driver_id'   => $shipment->driver_id,
-                    'rating'      => collect([5, 5, 5, 4, 4, 4, 3, 3, 2, 5])->random(),
-                    'comment'     => collect(self::COMMENTS)->random(),
+                    'user_id' => $customer->id,
+                    'driver_id' => $shipment->driver_id,
+                    'rating' => collect([5, 5, 5, 4, 4, 4, 3, 3, 2, 5])->random(),
+                    'comment' => collect(self::COMMENTS)->random(),
                 ]);
                 $review->created_at = $shipment->updated_at->copy()->addHours(random_int(1, 20));
                 $review->updated_at = $review->created_at;
@@ -178,6 +187,7 @@ class DemoDataSeeder extends Seeder
         if ($target === 'Booked') {
             $s->updated_at = $time;
             $s->save();
+
             return;
         }
 
@@ -186,23 +196,24 @@ class DemoDataSeeder extends Seeder
 
             StatusLog::create([
                 'shipment_id' => $s->id,
-                'status'      => 'Cancelled',
-                'note'        => 'Demo: cancelled by the customer',
-                'changed_at'  => $time,
+                'status' => 'Cancelled',
+                'note' => 'Demo: cancelled by the customer',
+                'changed_at' => $time,
             ]);
 
-            $s->status     = 'Cancelled';
+            $s->status = 'Cancelled';
             $s->updated_at = $time;
             $s->save();
+
             return;
         }
 
         // A driver and a vehicle that can carry the weight
         $driver = $drivers->random();
-        $fit    = $vehicles->filter(fn ($v) => $v->capacity_kg >= $s->weight_kg);
+        $fit = $vehicles->filter(fn ($v) => $v->capacity_kg >= $s->weight_kg);
         $vehicle = ($fit->isNotEmpty() ? $fit : $vehicles)->random();
 
-        $s->driver_id  = $driver->id;
+        $s->driver_id = $driver->id;
         $s->vehicle_id = $vehicle->id;
 
         foreach (['Assigned', 'Picked Up', 'In Transit', 'Delivered'] as $status) {
@@ -210,9 +221,9 @@ class DemoDataSeeder extends Seeder
 
             StatusLog::create([
                 'shipment_id' => $s->id,
-                'status'      => $status,
-                'note'        => 'Demo: ' . $status,
-                'changed_at'  => $time,
+                'status' => $status,
+                'note' => 'Demo: '.$status,
+                'changed_at' => $time,
             ]);
 
             $s->status = $status;

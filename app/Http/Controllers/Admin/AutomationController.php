@@ -26,13 +26,13 @@ class AutomationController extends Controller
         $running = $lastRun && Carbon::parse($lastRun)->gt(now()->subMinutes(5));
 
         return view('admin.automation.index', [
-            'logs'      => $logs,
-            'tasks'     => AutomationService::TASKS,
-            'settings'  => config('automation'),
-            'lastRun'   => $lastRun ? Carbon::parse($lastRun) : null,
-            'running'   => $running,
-            'warnings'  => AutomationLog::where('level', 'warning')->where('created_at', '>=', now()->subDay())->count(),
-            'actions'   => AutomationLog::where('level', 'info')->where('created_at', '>=', now()->subDay())->count(),
+            'logs' => $logs,
+            'tasks' => AutomationService::TASKS,
+            'settings' => config('automation'),
+            'lastRun' => $lastRun ? Carbon::parse($lastRun) : null,
+            'running' => $running,
+            'warnings' => AutomationLog::where('level', 'warning')->where('created_at', '>=', now()->subDay())->count(),
+            'actions' => AutomationLog::where('level', 'info')->where('created_at', '>=', now()->subDay())->count(),
             'taskFilter' => $task,
         ]);
     }
@@ -46,8 +46,8 @@ class AutomationController extends Controller
 
         $result = $service->run($data['task']);
 
-        $text = collect($result)->map(fn ($value, $key) => $key . ': ' . $value)->implode(', ');
+        $text = collect($result)->map(fn ($value, $key) => $key.': '.$value)->implode(', ');
 
-        return back()->with('success', 'Task "' . $data['task'] . '" finished. ' . $text);
+        return back()->with('success', 'Task "'.$data['task'].'" finished. '.$text);
     }
 }

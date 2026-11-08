@@ -19,6 +19,26 @@
             }
         };
     </script>
+<style>
+    aside,
+    aside *,
+    nav,
+    nav *,
+    .sidebar,
+    .sidebar * {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    aside::-webkit-scrollbar,
+    aside *::-webkit-scrollbar,
+    nav::-webkit-scrollbar,
+    nav *::-webkit-scrollbar,
+    .sidebar::-webkit-scrollbar,
+    .sidebar *::-webkit-scrollbar {
+        display: none;
+    }
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen font-sans antialiased">
 

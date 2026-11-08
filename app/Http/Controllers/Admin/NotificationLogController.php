@@ -13,7 +13,7 @@ class NotificationLogController extends Controller
     {
         $filters = $request->validate([
             'status' => ['nullable', Rule::in(['sent', 'failed', 'skipped'])],
-            'event'  => ['nullable', Rule::in(['booked', 'dispatched', 'delivered'])],
+            'event' => ['nullable', Rule::in(['booked', 'dispatched', 'delivered'])],
         ]);
 
         $logs = NotificationLog::with('shipment')

@@ -14,8 +14,8 @@ class PricingSeeder extends Seeder
         PricingSetting::current();
 
         $services = [
-            'Standard'  => 1.00,
-            'Express'   => 1.50,
+            'Standard' => 1.00,
+            'Express' => 1.50,
             'Overnight' => 2.00,
         ];
 
@@ -24,8 +24,8 @@ class PricingSeeder extends Seeder
         }
 
         $cargo = [
-            'General'    => 0,
-            'Fragile'    => 300,
+            'General' => 0,
+            'Fragile' => 300,
             'Perishable' => 500,
             'Electronics' => 400,
         ];

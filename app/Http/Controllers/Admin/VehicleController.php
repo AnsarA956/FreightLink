@@ -19,8 +19,8 @@ class VehicleController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'plate_no'    => ['required', 'string', 'max:20', 'unique:vehicles,plate_no'],
-            'type'        => ['required', Rule::in(Vehicle::TYPES)],
+            'plate_no' => ['required', 'string', 'max:20', 'unique:vehicles,plate_no'],
+            'type' => ['required', Rule::in(Vehicle::TYPES)],
             'capacity_kg' => ['required', 'integer', 'min:1'],
         ]);
 
@@ -32,8 +32,8 @@ class VehicleController extends Controller
     public function update(Request $request, Vehicle $vehicle)
     {
         $data = $request->validate([
-            'plate_no'    => ['required', 'string', 'max:20', Rule::unique('vehicles', 'plate_no')->ignore($vehicle->id)],
-            'type'        => ['required', Rule::in(Vehicle::TYPES)],
+            'plate_no' => ['required', 'string', 'max:20', Rule::unique('vehicles', 'plate_no')->ignore($vehicle->id)],
+            'type' => ['required', Rule::in(Vehicle::TYPES)],
             'capacity_kg' => ['required', 'integer', 'min:1'],
         ]);
 

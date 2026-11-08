@@ -18,7 +18,7 @@ class SmsService
         }
 
         $hasPlus = str_starts_with(trim($phone), '+');
-        $digits  = preg_replace('/\D+/', '', $phone);
+        $digits = preg_replace('/\D+/', '', $phone);
 
         if ($digits === '' || $digits === null) {
             return null;
@@ -26,7 +26,7 @@ class SmsService
 
         if ($hasPlus) {
             // International number: 10 to 15 digits
-            return strlen($digits) >= 10 && strlen($digits) <= 15 ? '+' . $digits : null;
+            return strlen($digits) >= 10 && strlen($digits) <= 15 ? '+'.$digits : null;
         }
 
         if (str_starts_with($digits, '0092')) {
@@ -34,15 +34,15 @@ class SmsService
         }
 
         if (str_starts_with($digits, '92') && strlen($digits) === 12) {
-            return '+' . $digits;                         // 923001234567
+            return '+'.$digits;                         // 923001234567
         }
 
         if (str_starts_with($digits, '03') && strlen($digits) === 11) {
-            return '+92' . substr($digits, 1);            // 03001234567
+            return '+92'.substr($digits, 1);            // 03001234567
         }
 
         if (str_starts_with($digits, '3') && strlen($digits) === 10) {
-            return '+92' . $digits;                       // 3001234567
+            return '+92'.$digits;                       // 3001234567
         }
 
         return null;
@@ -55,8 +55,8 @@ class SmsService
 
         match ($driver) {
             'twilio' => $this->sendWithTwilio($number, $text),
-            'log'    => $this->writeToLog($number, $text),
-            default  => throw new RuntimeException("Unknown SMS driver \"{$driver}\". Use log or twilio."),
+            'log' => $this->writeToLog($number, $text),
+            default => throw new RuntimeException("Unknown SMS driver \"{$driver}\". Use log or twilio."),
         };
     }
 
@@ -65,15 +65,15 @@ class SmsService
     {
         Log::build([
             'driver' => 'single',
-            'path'   => storage_path('logs/sms.log'),
-        ])->info('SMS to ' . $number . ': ' . $text);
+            'path' => storage_path('logs/sms.log'),
+        ])->info('SMS to '.$number.': '.$text);
     }
 
     private function sendWithTwilio(string $number, string $text): void
     {
-        $sid   = config('services.sms.twilio.sid');
+        $sid = config('services.sms.twilio.sid');
         $token = config('services.sms.twilio.token');
-        $from  = config('services.sms.twilio.from');
+        $from = config('services.sms.twilio.from');
 
         if (! $sid || ! $token || ! $from) {
             throw new RuntimeException('Twilio is not set up. Add TWILIO_SID, TWILIO_TOKEN and TWILIO_FROM to the .env file.');
@@ -85,7 +85,7 @@ class SmsService
                 ->withOptions(['verify' => filter_var(config('services.sms.verify', true), FILTER_VALIDATE_BOOLEAN)])
                 ->timeout(20)
                 ->post("https://api.twilio.com/2010-04-01/Accounts/{$sid}/Messages.json", [
-                    'To'   => $number,
+                    'To' => $number,
                     'From' => $from,
                     'Body' => $text,
                 ]);
@@ -94,7 +94,7 @@ class SmsService
         }
 
         if ($response->failed()) {
-            throw new RuntimeException('The SMS provider refused the message: ' . ($response->json('message') ?? 'HTTP ' . $response->status()));
+            throw new RuntimeException('The SMS provider refused the message: '.($response->json('message') ?? 'HTTP '.$response->status()));
         }
     }
 }

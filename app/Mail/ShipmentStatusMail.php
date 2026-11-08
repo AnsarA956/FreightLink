@@ -13,8 +13,7 @@ class ShipmentStatusMail extends Mailable
         public Shipment $shipment,
         public string $event,
         public string $subjectLine
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -27,8 +26,10 @@ class ShipmentStatusMail extends Mailable
             view: 'emails.shipment-status',
             with: [
                 'shipment' => $this->shipment,
-                'event'    => $this->event,
+                'event' => $this->event,
                 'trackUrl' => route('track.show', $this->shipment->tracking_id),
+                'payUrl' => route('customer.shipments.pay', $this->shipment),
+                'payUrl'   => route('customer.shipments.pay', $this->shipment),
             ],
         );
     }

@@ -30,22 +30,22 @@ class StripePaymentController extends Controller
         $email = $shipment->user->email;
 
         $data = [
-            'mode'                => 'payment',
+            'mode' => 'payment',
             'client_reference_id' => (string) $shipment->id,
-            'line_items'          => [[
-                'quantity'   => 1,
+            'line_items' => [[
+                'quantity' => 1,
                 'price_data' => [
-                    'currency'     => $currency,
-                    'unit_amount'  => $amount,
+                    'currency' => $currency,
+                    'unit_amount' => $amount,
                     'product_data' => [
-                        'name'        => 'FreightLink shipment ' . $shipment->tracking_id,
-                        'description' => $shipment->pickup_address . ' to ' . $shipment->delivery_address,
+                        'name' => 'FreightLink shipment '.$shipment->tracking_id,
+                        'description' => $shipment->pickup_address.' to '.$shipment->delivery_address,
                     ],
                 ],
             ]],
-            'metadata'    => ['shipment_id' => (string) $shipment->id, 'tracking_id' => $shipment->tracking_id],
-            'success_url' => route('customer.shipments.stripe.success', $shipment) . '?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url'  => route('customer.shipments.stripe.cancel', $shipment),
+            'metadata' => ['shipment_id' => (string) $shipment->id, 'tracking_id' => $shipment->tracking_id],
+            'success_url' => route('customer.shipments.stripe.success', $shipment).'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('customer.shipments.stripe.cancel', $shipment),
         ];
 
         // Walk-in customers have a made-up address, so it is not sent to Stripe
@@ -56,9 +56,9 @@ class StripePaymentController extends Controller
         try {
             $session = $this->client()->checkout->sessions->create($data);
         } catch (ApiErrorException $e) {
-            Log::warning('Stripe checkout could not start: ' . $e->getMessage());
+            Log::warning('Stripe checkout could not start: '.$e->getMessage());
 
-            return $payPage->withErrors(['payment' => 'Stripe could not start the payment: ' . $e->getMessage()]);
+            return $payPage->withErrors(['payment' => 'Stripe could not start the payment: '.$e->getMessage()]);
         }
 
         return redirect()->away($session->url);
@@ -86,7 +86,7 @@ class StripePaymentController extends Controller
                 'expand' => ['payment_intent.payment_method'],
             ]);
         } catch (ApiErrorException $e) {
-            Log::warning('Stripe session could not be read: ' . $e->getMessage());
+            Log::warning('Stripe session could not be read: '.$e->getMessage());
 
             return $show->withErrors(['payment' => 'The payment could not be confirmed with Stripe. Please check again in a minute.']);
         }
@@ -102,11 +102,11 @@ class StripePaymentController extends Controller
             return $show->withErrors(['payment' => 'The payment was not completed, and no money was taken. You can try again.']);
         }
 
-        $intent    = $session->payment_intent;
+        $intent = $session->payment_intent;
         $reference = is_object($intent) ? $intent->id : (string) $intent;
-        $method    = is_object($intent) ? ($intent->payment_method ?? null) : null;
-        $brand     = is_object($method) ? ($method->card->brand ?? null) : null;
-        $last4     = is_object($method) ? ($method->card->last4 ?? null) : null;
+        $method = is_object($intent) ? ($intent->payment_method ?? null) : null;
+        $brand = is_object($method) ? ($method->card->brand ?? null) : null;
+        $last4 = is_object($method) ? ($method->card->last4 ?? null) : null;
 
         // Saved once only, even if the page is reloaded or opened in two tabs
         DB::transaction(function () use ($shipment, $reference, $brand, $last4) {
@@ -118,14 +118,14 @@ class StripePaymentController extends Controller
 
             $all = [
                 'shipment_id' => $shipment->id,
-                'user_id'     => $shipment->user_id,
-                'amount'      => $shipment->total_price,
-                'method'      => 'card',
-                'status'      => 'paid',
-                'reference'   => $reference,
-                'card_brand'  => $brand ? ucfirst((string) $brand) : 'Card',
-                'card_last4'  => $last4,
-                'paid_at'     => now(),
+                'user_id' => $shipment->user_id,
+                'amount' => $shipment->total_price,
+                'method' => 'card',
+                'status' => 'paid',
+                'reference' => $reference,
+                'card_brand' => $brand ? ucfirst((string) $brand) : 'Card',
+                'card_last4' => $last4,
+                'paid_at' => now(),
             ];
 
             // Only the columns that exist in your payments table are filled
@@ -186,7 +186,7 @@ class StripePaymentController extends Controller
     private function chargeAmount(Shipment $shipment): array
     {
         $currency = strtolower(trim((string) config('services.stripe.currency', 'pkr')));
-        $total    = (float) $shipment->total_price;
+        $total = (float) $shipment->total_price;
 
         if ($currency === 'pkr') {
             return ['pkr', (int) round($total * 100)];

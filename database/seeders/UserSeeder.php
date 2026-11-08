@@ -21,11 +21,11 @@ class UserSeeder extends Seeder
             User::updateOrCreate(
                 ['email' => $email],
                 [
-                    'name'      => $name,
-                    'phone'     => $phone,
-                    'role'      => $role,
+                    'name' => $name,
+                    'phone' => $phone,
+                    'role' => $role,
                     'is_active' => true,
-                    'password'  => Hash::make($password),
+                    'password' => Hash::make($password),
                 ]
             );
         }

@@ -7,27 +7,33 @@
     $s = $settings;
 
     $info = [
-        'auto-assign'     => ['🚚', 'Smart dispatch', 'Gives a Booked shipment a driver and a vehicle: the driver with the fewest active shipments, and the smallest vehicle that can carry the weight.'],
-        'check-stuck'     => ['⚠️', 'Stuck-shipment alerts', 'Flags shipments with no driver, not picked up, or on the road for too long.'],
-        'close-delivered' => ['✅', 'Auto-close', 'Moves Delivered shipments to Closed after a few days.'],
-        'cleanup'         => ['🧹', 'Clean-up', 'Deletes old driver positions and old log lines.'],
-        'daily-report'    => ['📧', 'Daily report', 'Sends the admin a summary of yesterday.'],
+        'auto-assign'       => ['🚚', 'Smart dispatch', 'Gives a Booked shipment a driver and a vehicle: the driver with the fewest active shipments, and the smallest vehicle that can carry the weight.'],
+        'check-stuck'       => ['⚠️', 'Stuck & Late alerts', 'Flags shipments with no driver (after 24h), not picked up, or on the road for too long, and alerts admins.'],
+        'payment-reminders' => ['💳', 'Payment reminders', 'Emails customers whose shipment booking has remained unpaid after 2 days.'],
+        'auto-cancel'       => ['❌', 'Auto-cancel', 'Automatically cancels bookings that stay unpaid and unconfirmed after 7 days.'],
+        'close-delivered'   => ['✅', 'Auto-close', 'Moves Delivered shipments to Closed after a few days.'],
+        'cleanup'           => ['🧹', 'Clean-up', 'Deletes old driver positions and old log lines.'],
+        'daily-report'      => ['📧', 'Daily report', 'Sends the admin a summary of yesterday.'],
     ];
 
     $schedule = [
-        'auto-assign'     => 'every 5 minutes',
-        'check-stuck'     => 'every hour',
-        'close-delivered' => 'daily at 02:00',
-        'cleanup'         => 'daily at 03:00',
-        'daily-report'    => 'daily at 07:00',
+        'auto-assign'       => 'every 5 minutes / on booking',
+        'check-stuck'       => 'every hour',
+        'payment-reminders' => 'daily at 09:00',
+        'auto-cancel'       => 'daily at 04:00',
+        'close-delivered'   => 'daily at 02:00',
+        'cleanup'           => 'daily at 03:00',
+        'daily-report'      => 'daily at 07:00',
     ];
 
     $settingText = [
-        'auto-assign'     => ($s['auto_assign']['enabled'] ? 'On' : 'Off') . ' · waits ' . $s['auto_assign']['wait_minutes'] . ' min · max ' . $s['auto_assign']['max_active_per_driver'] . ' active per driver',
-        'check-stuck'     => ($s['stuck']['enabled'] ? 'On' : 'Off') . ' · ' . $s['stuck']['unassigned_hours'] . ' h no driver · ' . $s['stuck']['not_picked_up_hours'] . ' h not picked up · ' . $s['stuck']['in_transit_hours'] . ' h in transit',
-        'close-delivered' => ($s['close_delivered']['enabled'] ? 'On' : 'Off') . ' · after ' . $s['close_delivered']['after_days'] . ' days',
-        'cleanup'         => 'Always on',
-        'daily-report'    => $s['daily_report']['enabled'] ? 'On' : 'Off',
+        'auto-assign'       => ($s['auto_assign']['enabled'] ? 'On' : 'Off') . ' · waits ' . $s['auto_assign']['wait_minutes'] . ' min · max ' . $s['auto_assign']['max_active_per_driver'] . ' active per driver',
+        'check-stuck'       => ($s['stuck']['enabled'] ? 'On' : 'Off') . ' · ' . $s['stuck']['unassigned_hours'] . ' h no driver · ' . $s['stuck']['not_picked_up_hours'] . ' h not picked up · ' . $s['stuck']['in_transit_hours'] . ' h in transit',
+        'payment-reminders' => (($s['payment_reminders']['enabled'] ?? true) ? 'On' : 'Off') . ' · after ' . ($s['payment_reminders']['after_days'] ?? 2) . ' days unpaid',
+        'auto-cancel'       => (($s['auto_cancel']['enabled'] ?? true) ? 'On' : 'Off') . ' · after ' . ($s['auto_cancel']['after_days'] ?? 7) . ' days',
+        'close-delivered'   => ($s['close_delivered']['enabled'] ? 'On' : 'Off') . ' · after ' . $s['close_delivered']['after_days'] . ' days',
+        'cleanup'           => 'Always on',
+        'daily-report'      => $s['daily_report']['enabled'] ? 'On' : 'Off',
     ];
 @endphp
 

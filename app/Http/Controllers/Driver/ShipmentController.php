@@ -14,8 +14,8 @@ class ShipmentController extends Controller
 {
     // The only moves a driver may make
     private const NEXT = [
-        'Assigned'   => ['Picked Up'],
-        'Picked Up'  => ['In Transit'],
+        'Assigned' => ['Picked Up'],
+        'Picked Up' => ['In Transit'],
         'In Transit' => ['Delivered', 'Delivery Failed'],
     ];
 
@@ -61,7 +61,7 @@ class ShipmentController extends Controller
 
         return view('driver.shipments.show', [
             'shipment' => $shipment,
-            'options'  => self::NEXT[$shipment->status] ?? [],
+            'options' => self::NEXT[$shipment->status] ?? [],
         ]);
     }
 
@@ -73,7 +73,7 @@ class ShipmentController extends Controller
 
         $data = $request->validate([
             'status' => ['required', 'string'],
-            'note'   => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255'],
         ]);
 
         $error = null;
@@ -85,12 +85,14 @@ class ShipmentController extends Controller
             $allowed = self::NEXT[$locked->status] ?? [];
 
             if ($locked->driver_id !== $driver->id || ! in_array($data['status'], $allowed, true)) {
-                $error = 'You cannot change this shipment from "' . $locked->status . '" to "' . $data['status'] . '".';
+                $error = 'You cannot change this shipment from "'.$locked->status.'" to "'.$data['status'].'".';
+
                 return;
             }
 
             if ($data['status'] === 'Delivery Failed' && blank($data['note'] ?? null)) {
                 $error = 'Please write the reason for the failed delivery.';
+
                 return;
             }
 
@@ -98,9 +100,9 @@ class ShipmentController extends Controller
 
             StatusLog::create([
                 'shipment_id' => $locked->id,
-                'status'      => $data['status'],
-                'note'        => $data['note'] ?: 'Updated by driver ' . $driver->user->name,
-                'changed_at'  => now(),
+                'status' => $data['status'],
+                'note' => $data['note'] ?: 'Updated by driver '.$driver->user->name,
+                'changed_at' => now(),
             ]);
 
             // The trip is over, so the saved position is deleted
@@ -114,7 +116,7 @@ class ShipmentController extends Controller
         }
 
         return redirect()->route('driver.shipments.show', $shipment)
-            ->with('success', 'Status updated to ' . $data['status'] . '.');
+            ->with('success', 'Status updated to '.$data['status'].'.');
     }
 
     // REQ-31: the driver's phone sends its current position
@@ -126,14 +128,14 @@ class ShipmentController extends Controller
         if (! in_array($shipment->status, self::SHARING, true)) {
             return response()->json([
                 'message' => 'Location sharing is only available while the shipment is Picked Up or In Transit.',
-                'stop'    => true,
+                'stop' => true,
             ], 409);
         }
 
         $data = $request->validate([
-            'latitude'  => ['required', 'numeric', 'between:-90,90'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'accuracy'  => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
 
         // 0,0 is what a broken GPS reports, so it is not a real position
@@ -144,9 +146,9 @@ class ShipmentController extends Controller
         $location = ShipmentLocation::firstOrNew(['shipment_id' => $shipment->id]);
 
         $location->fill([
-            'driver_id'  => $driver->id,
-            'latitude'   => round((float) $data['latitude'], 7),
-            'longitude'  => round((float) $data['longitude'], 7),
+            'driver_id' => $driver->id,
+            'latitude' => round((float) $data['latitude'], 7),
+            'longitude' => round((float) $data['longitude'], 7),
             'accuracy_m' => isset($data['accuracy']) ? (int) round((float) $data['accuracy']) : null,
         ]);
 

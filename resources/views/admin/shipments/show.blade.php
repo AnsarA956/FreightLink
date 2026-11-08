@@ -20,6 +20,18 @@
         </div>
     @endif
 
+    @if (session('success'))
+        <div class="p-4 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+            {{ session('error') }}
+        </div>
+    @endif
+
     {{-- Banner --}}
     <div class="bg-gradient-to-r {{ $banner }} text-white rounded-2xl p-6 shadow">
         <div class="flex flex-wrap items-center justify-between gap-4">
@@ -39,6 +51,14 @@
                     <a href="{{ route('invoice.download', $shipment) }}"
                        class="bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full text-sm transition">⬇ Invoice PDF</a>
                 @endif
+
+                <form action="{{ route('admin.shipments.sendMail', $shipment) }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                            class="bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full text-sm transition">
+                        ✉ Email customer
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -173,6 +193,7 @@
             @endif
         </div>
     @endif
+
 
     {{-- Route map with the live driver position --}}
     @include('partials.route-map', [

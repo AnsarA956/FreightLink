@@ -13,30 +13,30 @@ class DashboardController extends Controller
 
     private const STATUS_COLORS = [
         'Pending Payment' => '#a855f7',
-        'Booked'          => '#3b82f6',
-        'Assigned'        => '#6366f1',
-        'Picked Up'       => '#f59e0b',
-        'In Transit'      => '#f97316',
-        'Delivered'       => '#16a34a',
+        'Booked' => '#3b82f6',
+        'Assigned' => '#6366f1',
+        'Picked Up' => '#f59e0b',
+        'In Transit' => '#f97316',
+        'Delivered' => '#16a34a',
         'Delivery Failed' => '#dc2626',
-        'Cancelled'       => '#94a3b8',
-        'Closed'          => '#0f766e',
+        'Cancelled' => '#94a3b8',
+        'Closed' => '#0f766e',
     ];
 
     public function index(Request $request)
     {
         // The chart period: 7, 30 or 90 days (30 if anything else is given)
         $requested = (int) $request->query('days');
-        $days      = in_array($requested, [7, 30, 90], true) ? $requested : 30;
+        $days = in_array($requested, [7, 30, 90], true) ? $requested : 30;
 
         // REQ-41: the statistics cards (cancelled shipments are not counted in totals or revenue)
         $stats = [
-            'total'     => Shipment::where('status', '!=', 'Cancelled')->count(),
-            'pending'   => Shipment::whereIn('status', self::PENDING)->count(),
-            'waiting'   => Shipment::where('status', 'Booked')->whereNull('driver_id')->count(),
+            'total' => Shipment::where('status', '!=', 'Cancelled')->count(),
+            'pending' => Shipment::whereIn('status', self::PENDING)->count(),
+            'waiting' => Shipment::where('status', 'Booked')->whereNull('driver_id')->count(),
             'delivered' => Shipment::whereIn('status', ['Delivered', 'Closed'])->count(),
             'cancelled' => Shipment::where('status', 'Cancelled')->count(),
-            'revenue'   => (float) Shipment::where('status', '!=', 'Cancelled')->sum('total_price'),
+            'revenue' => (float) Shipment::where('status', '!=', 'Cancelled')->sum('total_price'),
         ];
 
         // REQ-42: shipments and revenue for each day of the period
@@ -56,11 +56,11 @@ class DashboardController extends Controller
         // Days without any shipment must appear as zero, so every day gets a value
         for ($i = $days - 1; $i >= 0; $i--) {
             $date = today()->subDays($i);
-            $row  = $rows->get($date->format('Y-m-d'));
+            $row = $rows->get($date->format('Y-m-d'));
 
-            $labels[]         = $date->format('d M');
+            $labels[] = $date->format('d M');
             $shipmentSeries[] = (int) ($row->shipments ?? 0);
-            $revenueSeries[]  = round((float) ($row->revenue ?? 0), 2);
+            $revenueSeries[] = round((float) ($row->revenue ?? 0), 2);
         }
 
         // Shipments by status
@@ -69,7 +69,7 @@ class DashboardController extends Controller
             ->pluck('total', 'status');
 
         $statusLabels = [];
-        $statusData   = [];
+        $statusData = [];
         $statusColors = [];
 
         foreach (Shipment::STATUSES as $status) {
@@ -77,23 +77,23 @@ class DashboardController extends Controller
 
             if ($count > 0) {
                 $statusLabels[] = $status;
-                $statusData[]   = $count;
+                $statusData[] = $count;
                 $statusColors[] = self::STATUS_COLORS[$status] ?? '#64748b';
             }
         }
 
         $chart = [
-            'labels'       => $labels,
-            'shipments'    => $shipmentSeries,
-            'revenue'      => $revenueSeries,
+            'labels' => $labels,
+            'shipments' => $shipmentSeries,
+            'revenue' => $revenueSeries,
             'statusLabels' => $statusLabels,
-            'statusData'   => $statusData,
+            'statusData' => $statusData,
             'statusColors' => $statusColors,
         ];
 
         $period = [
             'shipments' => array_sum($shipmentSeries),
-            'revenue'   => array_sum($revenueSeries),
+            'revenue' => array_sum($revenueSeries),
         ];
 
         $recent = Shipment::with(['user', 'driver.user'])->latest()->limit(8)->get();

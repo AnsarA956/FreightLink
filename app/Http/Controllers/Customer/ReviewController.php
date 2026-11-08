@@ -22,7 +22,7 @@ class ReviewController extends Controller
         );
 
         $data = $request->validate([
-            'rating'  => ['required', 'integer', 'between:1,5'],
+            'rating' => ['required', 'integer', 'between:1,5'],
             'comment' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -30,10 +30,10 @@ class ReviewController extends Controller
         $review = Review::firstOrCreate(
             ['shipment_id' => $shipment->id],
             [
-                'user_id'   => auth()->id(),
+                'user_id' => auth()->id(),
                 'driver_id' => $shipment->driver_id,
-                'rating'    => $data['rating'],
-                'comment'   => filled($data['comment'] ?? null) ? trim($data['comment']) : null,
+                'rating' => $data['rating'],
+                'comment' => filled($data['comment'] ?? null) ? trim($data['comment']) : null,
             ]
         );
 

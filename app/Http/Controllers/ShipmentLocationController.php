@@ -34,11 +34,11 @@ class ShipmentLocationController extends Controller
         }
 
         return $this->json([
-            'active'      => true,
-            'status'      => $shipment->status,
-            'lat'         => $location->latitude,
-            'lng'         => $location->longitude,
-            'accuracy'    => $location->accuracy_m,
+            'active' => true,
+            'status' => $shipment->status,
+            'lat' => $location->latitude,
+            'lng' => $location->longitude,
+            'accuracy' => $location->accuracy_m,
             'seconds_ago' => (int) round($location->updated_at->diffInSeconds(now(), true)),
         ]);
     }

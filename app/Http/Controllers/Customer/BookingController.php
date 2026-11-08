@@ -19,7 +19,7 @@ class BookingController extends Controller
     public function create()
     {
         return view('customer.booking.create', [
-            'services'   => ServiceType::orderBy('id')->get(),
+            'services' => ServiceType::orderBy('id')->get(),
             'cargoTypes' => CargoType::orderBy('id')->get(),
         ]);
     }
@@ -32,15 +32,15 @@ class BookingController extends Controller
         DiscountService $discounts
     ) {
         $data = $request->validate([
-            'pickup_address'   => ['required', 'string', 'min:5', 'max:255'],
+            'pickup_address' => ['required', 'string', 'min:5', 'max:255'],
             'delivery_address' => ['required', 'string', 'min:5', 'max:255', 'different:pickup_address'],
-            'weight_kg'        => ['required', 'numeric', 'min:0.1', 'max:50000'],
-            'length_cm'        => ['required', 'numeric', 'min:1', 'max:1000'],
-            'width_cm'         => ['required', 'numeric', 'min:1', 'max:1000'],
-            'height_cm'        => ['required', 'numeric', 'min:1', 'max:1000'],
-            'cargo_type_id'    => ['required', 'exists:cargo_types,id'],
-            'service_type_id'  => ['required', 'exists:service_types,id'],
-            'discount_code'    => ['nullable', 'string', 'max:30'],
+            'weight_kg' => ['required', 'numeric', 'min:0.1', 'max:50000'],
+            'length_cm' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'width_cm' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'height_cm' => ['required', 'numeric', 'min:1', 'max:1000'],
+            'cargo_type_id' => ['required', 'exists:cargo_types,id'],
+            'service_type_id' => ['required', 'exists:service_types,id'],
+            'discount_code' => ['nullable', 'string', 'max:30'],
         ]);
 
         // Check the code first, so a wrong code does not use up a map request
@@ -52,7 +52,7 @@ class BookingController extends Controller
 
         try {
             $route = $distance->route($data['pickup_address'], $data['delivery_address']);
-            $km    = $route['km'];
+            $km = $route['km'];
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['distance' => $e->getMessage()]);
         }
@@ -70,8 +70,8 @@ class BookingController extends Controller
 
         // Keep the coordinates with the price, so the map can be shown and saved
         $breakdown = array_merge($breakdown, [
-            'pickup_lat'   => $route['pickup_lat'],
-            'pickup_lng'   => $route['pickup_lng'],
+            'pickup_lat' => $route['pickup_lat'],
+            'pickup_lng' => $route['pickup_lng'],
             'delivery_lat' => $route['delivery_lat'],
             'delivery_lng' => $route['delivery_lng'],
         ]);
@@ -99,7 +99,7 @@ class BookingController extends Controller
 
         return view('customer.booking.review', [
             'data' => $estimate['input'],
-            'b'    => $estimate['breakdown'],
+            'b' => $estimate['breakdown'],
         ]);
     }
 
@@ -127,6 +127,6 @@ class BookingController extends Controller
         session()->forget('booking_estimate');
 
         return redirect()->route('customer.shipments.show', $shipment)
-            ->with('success', 'Booking confirmed. Your tracking ID is ' . $shipment->tracking_id . '.');
+            ->with('success', 'Booking confirmed. Your tracking ID is '.$shipment->tracking_id.'.');
     }
 }

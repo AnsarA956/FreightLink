@@ -20,20 +20,20 @@ class ShipmentController extends Controller
     public function index(Request $request)
     {
         $filters = $request->validate([
-            'q'      => ['nullable', 'string', 'max:100'],
+            'q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(Shipment::STATUSES)],
-            'from'   => ['nullable', 'date'],
-            'to'     => ['nullable', 'date'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
         ]);
 
         $shipments = Shipment::with(['user', 'serviceType', 'driver.user', 'vehicle'])
             ->when($filters['q'] ?? null, function ($query, $q) {
                 $query->where(function ($w) use ($q) {
                     $w->where('tracking_id', 'like', "%{$q}%")
-                      ->orWhereHas('user', function ($u) use ($q) {
-                          $u->where('name', 'like', "%{$q}%")
-                            ->orWhere('email', 'like', "%{$q}%");
-                      });
+                        ->orWhereHas('user', function ($u) use ($q) {
+                            $u->where('name', 'like', "%{$q}%")
+                                ->orWhere('email', 'like', "%{$q}%");
+                        });
                 });
             })
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
@@ -45,7 +45,7 @@ class ShipmentController extends Controller
 
         return view('admin.shipments.index', [
             'shipments' => $shipments,
-            'statuses'  => Shipment::STATUSES,
+            'statuses' => Shipment::STATUSES,
         ]);
     }
 
@@ -62,9 +62,9 @@ class ShipmentController extends Controller
         $vehicles = Vehicle::orderBy('capacity_kg')->get();
 
         return view('admin.shipments.show', [
-            'shipment'   => $shipment,
-            'drivers'    => $drivers,
-            'vehicles'   => $vehicles,
+            'shipment' => $shipment,
+            'drivers' => $drivers,
+            'vehicles' => $vehicles,
             'assignable' => in_array($shipment->status, self::ASSIGNABLE),
         ]);
     }
@@ -79,11 +79,11 @@ class ShipmentController extends Controller
         }
 
         $data = $request->validate([
-            'driver_id'  => ['required', 'exists:drivers,id'],
+            'driver_id' => ['required', 'exists:drivers,id'],
             'vehicle_id' => ['required', 'exists:vehicles,id'],
         ]);
 
-        $driver  = Driver::with('user')->findOrFail($data['driver_id']);
+        $driver = Driver::with('user')->findOrFail($data['driver_id']);
         $vehicle = Vehicle::findOrFail($data['vehicle_id']);
 
         if (! $driver->user->is_active || $driver->status === 'Off Duty') {
@@ -95,9 +95,9 @@ class ShipmentController extends Controller
         // The safety rule: the vehicle must be able to carry the shipment
         if ($vehicle->capacity_kg < (float) $shipment->weight_kg) {
             return back()->withInput()->withErrors([
-                'vehicle_id' => "Vehicle {$vehicle->plate_no} can carry only " . number_format($vehicle->capacity_kg)
-                    . ' kg, but this shipment weighs ' . number_format($shipment->weight_kg, 2)
-                    . ' kg. Please choose a larger vehicle.',
+                'vehicle_id' => "Vehicle {$vehicle->plate_no} can carry only ".number_format($vehicle->capacity_kg)
+                    .' kg, but this shipment weighs '.number_format($shipment->weight_kg, 2)
+                    .' kg. Please choose a larger vehicle.',
             ]);
         }
 
@@ -105,20 +105,20 @@ class ShipmentController extends Controller
 
         DB::transaction(function () use ($shipment, $driver, $vehicle, $wasBooked) {
             $shipment->update([
-                'driver_id'  => $driver->id,
+                'driver_id' => $driver->id,
                 'vehicle_id' => $vehicle->id,
-                'status'     => 'Assigned',
+                'status' => 'Assigned',
             ]);
 
             StatusLog::create([
                 'shipment_id' => $shipment->id,
-                'status'      => 'Assigned',
-                'note'        => ($wasBooked ? 'Assigned to ' : 'Reassigned to ')
-                                 . $driver->user->name . ' with vehicle ' . $vehicle->plate_no,
-                'changed_at'  => now(),
+                'status' => 'Assigned',
+                'note' => ($wasBooked ? 'Assigned to ' : 'Reassigned to ')
+                                 .$driver->user->name.' with vehicle '.$vehicle->plate_no,
+                'changed_at' => now(),
             ]);
         });
 
-        return back()->with('success', 'Shipment assigned to ' . $driver->user->name . ' with vehicle ' . $vehicle->plate_no . '.');
+        return back()->with('success', 'Shipment assigned to '.$driver->user->name.' with vehicle '.$vehicle->plate_no.'.');
     }
 }

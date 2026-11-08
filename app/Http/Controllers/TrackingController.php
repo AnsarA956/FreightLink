@@ -37,13 +37,13 @@ class TrackingController extends Controller
         }
 
         // The normal path of a shipment, shown as a progress bar
-        $steps   = ['Booked', 'Assigned', 'Picked Up', 'In Transit', 'Delivered'];
+        $steps = ['Booked', 'Assigned', 'Picked Up', 'In Transit', 'Delivered'];
         $reached = $shipment->statusLogs->pluck('status')->unique()->all();
 
         return view('tracking.show', [
             'shipment' => $shipment,
-            'steps'    => $steps,
-            'reached'  => $reached,
+            'steps' => $steps,
+            'reached' => $reached,
             'timeline' => $shipment->statusLogs->reverse()->values(), // newest first
         ]);
     }
@@ -53,6 +53,6 @@ class TrackingController extends Controller
     {
         $id = strtoupper(trim($value));
 
-        return ctype_digit($id) ? 'FL-' . $id : $id;
+        return ctype_digit($id) ? 'FL-'.$id : $id;
     }
 }

@@ -24,9 +24,9 @@ class DriverRatingController extends Controller
 
         return view('admin.ratings.index', [
             'drivers' => $drivers,
-            'latest'  => $latest,
+            'latest' => $latest,
             'overall' => round((float) Review::avg('rating'), 2),
-            'total'   => Review::count(),
+            'total' => Review::count(),
         ]);
     }
 }

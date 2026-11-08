@@ -10,9 +10,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ReportExport
 {
-    public function __construct(private array $report)
-    {
-    }
+    public function __construct(private array $report) {}
 
     // Builds the Excel file in a temporary file and returns its path
     public function save(): string
@@ -20,11 +18,11 @@ class ReportExport
         $r = $this->report;
         $s = $r['summary'];
 
-        $book = new Spreadsheet();
+        $book = new Spreadsheet;
 
         // Sheet 1: summary (counts go in "Number", money goes in "Amount")
         $summaryRows = [
-            ['Report', $r['type_label'] . ' report', null],
+            ['Report', $r['type_label'].' report', null],
             ['From', $r['from']->format('Y-m-d'), null],
             ['To', $r['to']->format('Y-m-d'), null],
             ['Shipments (cancelled not counted)', $s['shipments'], null],
@@ -35,8 +33,8 @@ class ReportExport
             ['of which tax', null, $s['tax']],
             ['Discounts given', null, $s['discount']],
             ['Average shipment value', null, $s['average']],
-            ['Total distance', number_format($s['distance'], 2) . ' km', null],
-            ['Total weight', number_format($s['weight'], 2) . ' kg', null],
+            ['Total distance', number_format($s['distance'], 2).' km', null],
+            ['Total weight', number_format($s['weight'], 2).' kg', null],
         ];
 
         $this->fill(
@@ -124,22 +122,22 @@ class ReportExport
         }
 
         $lastColumn = Coordinate::stringFromColumnIndex(count($headings));
-        $lastRow    = count($rows) + 1;
+        $lastRow = count($rows) + 1;
 
         // The heading row is bold
-        $sheet->getStyle('A1:' . $lastColumn . '1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:'.$lastColumn.'1')->getFont()->setBold(true);
 
         // Number formats (thousand separators, two decimals)
         if ($lastRow >= 2) {
             foreach ($formats as $column => $format) {
-                $sheet->getStyle($column . '2:' . $column . $lastRow)->getNumberFormat()->setFormatCode($format);
+                $sheet->getStyle($column.'2:'.$column.$lastRow)->getNumberFormat()->setFormatCode($format);
             }
         }
 
         // The last rows (totals) are bold
         for ($i = 0; $i < $boldLastRows; $i++) {
             $row = $lastRow - $i;
-            $sheet->getStyle('A' . $row . ':' . $lastColumn . $row)->getFont()->setBold(true);
+            $sheet->getStyle('A'.$row.':'.$lastColumn.$row)->getFont()->setBold(true);
         }
 
         for ($column = 1; $column <= count($headings); $column++) {

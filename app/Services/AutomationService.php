@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AutomationLog;
 use App\Models\Driver;
+use App\Models\NotificationLog;
 use App\Models\Shipment;
 use App\Models\ShipmentLocation;
 use App\Models\StatusLog;
@@ -19,7 +20,15 @@ use Throwable;
 
 class AutomationService
 {
-    public const TASKS = ['auto-assign', 'check-stuck', 'close-delivered', 'cleanup', 'daily-report'];
+    public const TASKS = [
+        'auto-assign',
+        'check-stuck',
+        'close-delivered',
+        'cleanup',
+        'daily-report',
+        'payment-reminders',
+        'auto-cancel',
+    ];
 
     private const ACTIVE = ['Assigned', 'Picked Up', 'In Transit'];
 
@@ -27,21 +36,23 @@ class AutomationService
     public function run(string $task): array
     {
         if ($task !== 'heartbeat' && ! in_array($task, self::TASKS, true)) {
-            throw new InvalidArgumentException('Unknown task "' . $task . '". Use: ' . implode(', ', self::TASKS));
+            throw new InvalidArgumentException('Unknown task "'.$task.'". Use: '.implode(', ', self::TASKS));
         }
 
         try {
             return match ($task) {
-                'auto-assign'     => $this->autoAssign(),
-                'check-stuck'     => $this->checkStuck(),
+                'auto-assign' => $this->autoAssign(),
+                'check-stuck' => $this->checkStuck(),
                 'close-delivered' => $this->closeDelivered(),
-                'cleanup'         => $this->cleanup(),
-                'daily-report'    => $this->dailyReport(),
-                'heartbeat'       => $this->heartbeat(),
+                'cleanup' => $this->cleanup(),
+                'daily-report' => $this->dailyReport(),
+                'payment-reminders' => $this->paymentReminders(),
+                'auto-cancel' => $this->autoCancel(),
+                'heartbeat' => $this->heartbeat(),
             };
         } catch (Throwable $e) {
-            Log::error('Automation task ' . $task . ' failed: ' . $e->getMessage());
-            $this->log($task, 'warning', null, 'The task failed: ' . mb_substr($e->getMessage(), 0, 300));
+            Log::error('Automation task '.$task.' failed: '.$e->getMessage());
+            $this->log($task, 'warning', null, 'The task failed: '.mb_substr($e->getMessage(), 0, 300));
 
             return ['error' => mb_substr($e->getMessage(), 0, 120)];
         }
@@ -95,16 +106,16 @@ class AutomationService
             ->all();
 
         $assigned = 0;
-        $waiting  = 0;
+        $waiting = 0;
 
         foreach ($shipments as $shipment) {
-            $driver  = $this->pickDriver($drivers, $load, (int) $cfg['max_active_per_driver']);
+            $driver = $this->pickDriver($drivers, $load, (int) $cfg['max_active_per_driver']);
             $vehicle = $driver ? $this->pickVehicle($driver, (float) $shipment->weight_kg) : null;
 
             if (! $driver || ! $vehicle) {
                 $waiting++;
                 $this->logOnce('auto-assign', 'warning', $shipment,
-                    'Could not be assigned automatically: ' . (! $driver ? 'no free driver.' : 'no vehicle can carry ' . number_format($shipment->weight_kg, 2) . ' kg.'));
+                    'Could not be assigned automatically: '.(! $driver ? 'no free driver.' : 'no vehicle can carry '.number_format($shipment->weight_kg, 2).' kg.'));
 
                 continue;
             }
@@ -118,16 +129,16 @@ class AutomationService
                 }
 
                 $locked->update([
-                    'driver_id'  => $driver->id,
+                    'driver_id' => $driver->id,
                     'vehicle_id' => $vehicle->id,
-                    'status'     => 'Assigned',
+                    'status' => 'Assigned',
                 ]);
 
                 StatusLog::create([
                     'shipment_id' => $locked->id,
-                    'status'      => 'Assigned',
-                    'note'        => 'Assigned automatically to ' . $driver->user->name . ' (' . $vehicle->plate_no . ')',
-                    'changed_at'  => now(),
+                    'status' => 'Assigned',
+                    'note' => 'Assigned automatically to '.$driver->user->name.' ('.$vehicle->plate_no.')',
+                    'changed_at' => now(),
                 ]);
 
                 return true;
@@ -138,11 +149,78 @@ class AutomationService
                 $assigned++;
 
                 $this->log('auto-assign', 'info', $shipment,
-                    'Assigned to ' . $driver->user->name . ' with vehicle ' . $vehicle->plate_no . '.');
+                    'Assigned to '.$driver->user->name.' with vehicle '.$vehicle->plate_no.'.');
             }
         }
 
         return ['assigned' => $assigned, 'waiting' => $waiting];
+    }
+
+    /**
+     * Dispatch an individual shipment immediately (called upon booking creation)
+     */
+    public function assignShipment(Shipment $shipment): bool
+    {
+        $cfg = config('automation.auto_assign');
+
+        if (! ($cfg['enabled'] ?? true)) {
+            return false;
+        }
+
+        if ($shipment->status !== 'Booked' || $shipment->driver_id !== null) {
+            return false;
+        }
+
+        $drivers = Driver::with('user')->get()
+            ->filter(fn ($d) => $d->user && $d->user->is_active && ! $this->isOffDuty((string) $d->status))
+            ->values();
+
+        $load = Shipment::whereIn('status', self::ACTIVE)
+            ->whereNotNull('driver_id')
+            ->selectRaw('driver_id, COUNT(*) as total')
+            ->groupBy('driver_id')
+            ->pluck('total', 'driver_id')
+            ->all();
+
+        $driver = $this->pickDriver($drivers, $load, (int) ($cfg['max_active_per_driver'] ?? 5));
+        $vehicle = $driver ? $this->pickVehicle($driver, (float) $shipment->weight_kg) : null;
+
+        if (! $driver || ! $vehicle) {
+            $this->logOnce('auto-assign', 'warning', $shipment,
+                'Could not be assigned automatically on booking: '.(! $driver ? 'no free driver.' : 'no vehicle can carry '.number_format($shipment->weight_kg, 2).' kg.'));
+
+            return false;
+        }
+
+        $done = DB::transaction(function () use ($shipment, $driver, $vehicle) {
+            $locked = Shipment::whereKey($shipment->id)->lockForUpdate()->first();
+
+            if (! $locked || $locked->status !== 'Booked' || $locked->driver_id !== null) {
+                return false;
+            }
+
+            $locked->update([
+                'driver_id' => $driver->id,
+                'vehicle_id' => $vehicle->id,
+                'status' => 'Assigned',
+            ]);
+
+            StatusLog::create([
+                'shipment_id' => $locked->id,
+                'status' => 'Assigned',
+                'note' => 'Assigned automatically to '.$driver->user->name.' ('.$vehicle->plate_no.')',
+                'changed_at' => now(),
+            ]);
+
+            return true;
+        });
+
+        if ($done) {
+            $this->log('auto-assign', 'info', $shipment,
+                'Assigned to '.$driver->user->name.' with vehicle '.$vehicle->plate_no.'.');
+        }
+
+        return (bool) $done;
     }
 
     // The driver with the fewest active shipments (below the limit)
@@ -193,7 +271,7 @@ class AutomationService
     }
 
     // ------------------------------------------------------------------
-    // 2. Stuck-shipment alerts
+    // 2. Stuck-shipment / Late shipment alerts
     // ------------------------------------------------------------------
 
     private function checkStuck(): array
@@ -206,14 +284,28 @@ class AutomationService
 
         $new = 0;
 
-        // No driver for too long
-        $hours = (int) $cfg['unassigned_hours'];
-        Shipment::where('status', 'Booked')->whereNull('driver_id')
+        // No driver for too long (default 24 hours: "Late shipment alert")
+        $hours = (int) ($cfg['unassigned_hours'] ?? 24);
+        $unassigned = Shipment::where('status', 'Booked')
+            ->whereNull('driver_id')
             ->where('created_at', '<=', now()->subHours($hours))
-            ->limit(100)->get()
-            ->each(function ($s) use (&$new, $hours) {
-                $new += $this->logOnce('check-stuck', 'warning', $s, "Still has no driver after {$hours} hours.") ? 1 : 0;
-            });
+            ->limit(100)
+            ->get();
+
+        $lateShipments = [];
+
+        foreach ($unassigned as $s) {
+            $msg = "Late shipment alert: shipment {$s->tracking_id} is still Booked after {$hours} hours with no driver assigned.";
+            if ($this->logOnce('check-stuck', 'warning', $s, $msg)) {
+                $new++;
+                $lateShipments[] = $s;
+            }
+        }
+
+        // Email admins if new late shipments were detected
+        if (! empty($lateShipments) && ($cfg['notify_admin'] ?? true)) {
+            $this->notifyAdminsLateShipments($lateShipments, $hours);
+        }
 
         // Assigned, but the driver has not picked it up
         $hours = (int) $cfg['not_picked_up_hours'];
@@ -236,6 +328,33 @@ class AutomationService
         return ['new_alerts' => $new];
     }
 
+    private function notifyAdminsLateShipments(array $lateShipments, int $hours): void
+    {
+        $emails = User::where('role', 'admin')->where('is_active', true)->pluck('email')
+            ->reject(fn ($email) => str_ends_with($email, '@freightlink.local'));
+
+        if ($emails->isEmpty()) {
+            return;
+        }
+
+        $count = count($lateShipments);
+        $text = "FreightLink Alert: {$count} shipment(s) have been Booked for more than {$hours} hours without an assigned driver.\n\n";
+
+        foreach ($lateShipments as $s) {
+            $text .= "- Tracking ID: {$s->tracking_id} | Route: {$s->pickup_address} -> {$s->delivery_address} | Booked: {$s->created_at->format('d M Y H:i')}\n";
+        }
+
+        $text .= "\nPlease log into the FreightLink Admin panel to assign drivers or check dispatch.";
+
+        foreach ($emails as $email) {
+            try {
+                Mail::raw($text, fn ($m) => $m->to($email)->subject("⚠️ Alert: {$count} unassigned late shipment(s) in FreightLink"));
+            } catch (Throwable $e) {
+                Log::warning('Late shipment alert email failed for '.$email.': '.$e->getMessage());
+            }
+        }
+    }
+
     // ------------------------------------------------------------------
     // 3. Close delivered shipments
     // ------------------------------------------------------------------
@@ -248,7 +367,7 @@ class AutomationService
             return ['skipped' => 'switched off'];
         }
 
-        $days   = max(1, (int) $cfg['after_days']);
+        $days = max(1, (int) $cfg['after_days']);
         $cutoff = now()->subDays($days);
 
         $ids = Shipment::where('status', 'Delivered')
@@ -270,9 +389,9 @@ class AutomationService
 
                 StatusLog::create([
                     'shipment_id' => $locked->id,
-                    'status'      => 'Closed',
-                    'note'        => "Closed automatically {$days} days after delivery",
-                    'changed_at'  => now(),
+                    'status' => 'Closed',
+                    'note' => "Closed automatically {$days} days after delivery",
+                    'changed_at' => now(),
                 ]);
 
                 return true;
@@ -319,17 +438,17 @@ class AutomationService
             return ['skipped' => 'switched off'];
         }
 
-        $day     = now()->subDay()->startOfDay();
+        $day = now()->subDay()->startOfDay();
         $summary = app(ReportService::class)->build('daily', $day, $day->copy())['summary'];
 
-        $text = "FreightLink daily summary for " . $day->format('d M Y') . "\n\n"
-            . 'Shipments booked (cancelled not counted): ' . number_format($summary['shipments']) . "\n"
-            . 'Delivered: ' . number_format($summary['delivered']) . "\n"
-            . 'Pending deliveries: ' . number_format($summary['pending']) . "\n"
-            . 'Cancelled: ' . number_format($summary['cancelled']) . "\n"
-            . 'Revenue: Rs ' . number_format($summary['revenue'], 2) . "\n"
-            . 'Average shipment value: Rs ' . number_format($summary['average'], 2) . "\n\n"
-            . 'Open the Reports page for the full PDF and Excel files.';
+        $text = 'FreightLink daily summary for '.$day->format('d M Y')."\n\n"
+            .'Shipments booked (cancelled not counted): '.number_format($summary['shipments'])."\n"
+            .'Delivered: '.number_format($summary['delivered'])."\n"
+            .'Pending deliveries: '.number_format($summary['pending'])."\n"
+            .'Cancelled: '.number_format($summary['cancelled'])."\n"
+            .'Revenue: Rs '.number_format($summary['revenue'], 2)."\n"
+            .'Average shipment value: Rs '.number_format($summary['average'], 2)."\n\n"
+            .'Open the Reports page for the full PDF and Excel files.';
 
         $emails = User::where('role', 'admin')->where('is_active', true)->pluck('email')
             ->reject(fn ($email) => str_ends_with($email, '@freightlink.local'));
@@ -338,10 +457,10 @@ class AutomationService
 
         foreach ($emails as $email) {
             try {
-                Mail::raw($text, fn ($m) => $m->to($email)->subject('FreightLink daily summary, ' . $day->format('d M Y')));
+                Mail::raw($text, fn ($m) => $m->to($email)->subject('FreightLink daily summary, '.$day->format('d M Y')));
                 $sent++;
             } catch (Throwable $e) {
-                Log::warning('Daily report email failed for ' . $email . ': ' . $e->getMessage());
+                Log::warning('Daily report email failed for '.$email.': '.$e->getMessage());
             }
         }
 
@@ -352,16 +471,122 @@ class AutomationService
     }
 
     // ------------------------------------------------------------------
+    // 6. Payment reminder: email customers whose shipment is unpaid after 2 days
+    // ------------------------------------------------------------------
+
+    private function paymentReminders(): array
+    {
+        $cfg = config('automation.payment_reminders');
+
+        if (! ($cfg['enabled'] ?? true)) {
+            return ['skipped' => 'switched off'];
+        }
+
+        $days = max(1, (int) ($cfg['after_days'] ?? 2));
+        $cutoff = now()->subDays($days);
+
+        $shipments = Shipment::whereIn('status', ['Pending Payment', 'Booked'])
+            ->where('created_at', '<=', $cutoff)
+            ->where('created_at', '>', now()->subDays(7))
+            ->doesntHave('paidPayment')
+            ->with(['user', 'serviceType'])
+            ->limit(100)
+            ->get();
+
+        $sent = 0;
+
+        foreach ($shipments as $shipment) {
+            if (! $shipment->user || str_ends_with($shipment->user->email, '@freightlink.local')) {
+                continue;
+            }
+
+            // Do not send more than once every 48 hours for the same shipment
+            $alreadySent = NotificationLog::where('shipment_id', $shipment->id)
+                ->where('event', 'payment_reminder')
+                ->where('channel', 'email')
+                ->where('created_at', '>=', now()->subDays(2))
+                ->exists();
+
+            if ($alreadySent) {
+                continue;
+            }
+
+            try {
+                app(ShipmentNotifier::class)->sendPaymentReminder($shipment);
+                $sent++;
+                $this->log('payment-reminders', 'info', $shipment, "Payment reminder sent to {$shipment->user->email} for shipment {$shipment->tracking_id}.");
+            } catch (Throwable $e) {
+                Log::warning("Payment reminder email failed for {$shipment->tracking_id}: ".$e->getMessage());
+            }
+        }
+
+        return ['reminders_sent' => $sent];
+    }
+
+    // ------------------------------------------------------------------
+    // 7. Auto-cancel: cancel bookings that stay unpaid and unconfirmed after 7 days
+    // ------------------------------------------------------------------
+
+    private function autoCancel(): array
+    {
+        $cfg = config('automation.auto_cancel');
+
+        if (! ($cfg['enabled'] ?? true)) {
+            return ['skipped' => 'switched off'];
+        }
+
+        $days = max(1, (int) ($cfg['after_days'] ?? 7));
+        $cutoff = now()->subDays($days);
+
+        $shipments = Shipment::whereIn('status', ['Pending Payment', 'Booked'])
+            ->whereNull('driver_id')
+            ->doesntHave('paidPayment')
+            ->where('created_at', '<=', $cutoff)
+            ->limit(100)
+            ->get();
+
+        $cancelled = 0;
+
+        foreach ($shipments as $shipment) {
+            $done = DB::transaction(function () use ($shipment, $days) {
+                $locked = Shipment::whereKey($shipment->id)->lockForUpdate()->first();
+
+                if (! $locked || ! in_array($locked->status, ['Pending Payment', 'Booked'], true) || $locked->driver_id !== null || $locked->paidPayment()->exists()) {
+                    return false;
+                }
+
+                $locked->update(['status' => 'Cancelled']);
+
+                StatusLog::create([
+                    'shipment_id' => $locked->id,
+                    'status' => 'Cancelled',
+                    'note' => "Cancelled automatically after {$days} days unpaid and unconfirmed.",
+                    'changed_at' => now(),
+                ]);
+
+                return true;
+            });
+
+            if ($done) {
+                $cancelled++;
+                $this->log('auto-cancel', 'info', $shipment, "Shipment {$shipment->tracking_id} cancelled automatically after {$days} days unpaid and unconfirmed.");
+            }
+        }
+
+        return ['cancelled' => $cancelled];
+    }
+
+    // ------------------------------------------------------------------
     // The log
     // ------------------------------------------------------------------
 
     private function log(string $task, string $level, ?Shipment $shipment, string $message): void
     {
         AutomationLog::create([
-            'task'        => $task,
-            'level'       => $level,
+            'task' => $task,
+            'level' => $level,
             'shipment_id' => $shipment?->id,
-            'message'     => mb_substr($message, 0, 500),
+            'message' => mb_substr($message, 0, 500),
         ]);
     }
 

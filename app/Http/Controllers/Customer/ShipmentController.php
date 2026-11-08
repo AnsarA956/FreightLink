@@ -23,7 +23,7 @@ class ShipmentController extends Controller
         // A customer may only open their own shipments
         abort_unless($shipment->user_id === auth()->id(), 403);
 
-                $shipment->load(['serviceType', 'cargoType', 'statusLogs', 'review', 'paidPayment']);
+        $shipment->load(['serviceType', 'cargoType', 'statusLogs', 'review', 'paidPayment']);
 
         return view('customer.shipments.show', compact('shipment'));
     }

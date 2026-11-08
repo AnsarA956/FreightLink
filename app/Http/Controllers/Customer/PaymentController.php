@@ -22,7 +22,7 @@ class PaymentController extends Controller
         }
 
         return view('customer.payments.create', [
-            'shipment'  => $shipment,
+            'shipment' => $shipment,
             'testCards' => TestPaymentGateway::TEST_CARDS,
         ]);
     }
@@ -33,13 +33,13 @@ class PaymentController extends Controller
         abort_unless($shipment->user_id === auth()->id(), 403);
 
         $data = $request->validate([
-            'card_name'   => ['required', 'string', 'max:100'],
+            'card_name' => ['required', 'string', 'max:100'],
             'card_number' => ['required', 'string', 'regex:/^[0-9\s]{12,23}$/'],
-            'expiry'      => ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/\d{2}$/'],
-            'cvc'         => ['required', 'digits_between:3,4'],
+            'expiry' => ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/\d{2}$/'],
+            'cvc' => ['required', 'digits_between:3,4'],
         ], [
             'card_number.regex' => 'Enter the card number using digits only.',
-            'expiry.regex'      => 'Enter the expiry date as MM/YY, for example 12/30.',
+            'expiry.regex' => 'Enter the expiry date as MM/YY, for example 12/30.',
         ]);
 
         // Never put the card number or the CVC back into the form, even after an error
@@ -61,16 +61,16 @@ class PaymentController extends Controller
             $result = $gateway->charge($data['card_number'], $data['expiry']);
 
             Payment::create([
-                'shipment_id'    => $locked->id,
-                'user_id'        => auth()->id(),
-                'reference'      => $this->newReference(),
-                'amount'         => $locked->total_price,
-                'method'         => 'test_card',
-                'card_brand'     => $result['brand'],
-                'card_last4'     => $result['last4'],
-                'status'         => $result['ok'] ? 'paid' : 'failed',
+                'shipment_id' => $locked->id,
+                'user_id' => auth()->id(),
+                'reference' => $this->newReference(),
+                'amount' => $locked->total_price,
+                'method' => 'test_card',
+                'card_brand' => $result['brand'],
+                'card_last4' => $result['last4'],
+                'status' => $result['ok'] ? 'paid' : 'failed',
                 'failure_reason' => $result['ok'] ? null : $result['reason'],
-                'paid_at'        => $result['ok'] ? now() : null,
+                'paid_at' => $result['ok'] ? now() : null,
             ]);
 
             return $result;
@@ -109,7 +109,7 @@ class PaymentController extends Controller
     private function newReference(): string
     {
         do {
-            $ref = 'PAY-' . strtoupper(Str::random(10));
+            $ref = 'PAY-'.strtoupper(Str::random(10));
         } while (Payment::where('reference', $ref)->exists());
 
         return $ref;

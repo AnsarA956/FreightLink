@@ -7,11 +7,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement("ALTER TABLE notification_logs MODIFY channel VARCHAR(20) NOT NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE notification_logs MODIFY channel VARCHAR(20) NOT NULL');
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE notification_logs MODIFY channel VARCHAR(20) NOT NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE notification_logs MODIFY channel VARCHAR(10) NOT NULL');
+        }
     }
 };

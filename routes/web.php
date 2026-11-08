@@ -1,35 +1,36 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Controllers\Admin\AutomationController;
+use App\Http\Controllers\Admin\CargoTypeController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DiscountCodeController;
+use App\Http\Controllers\Admin\DriverController;
+use App\Http\Controllers\Admin\NotificationLogController;
+use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Admin\PricingSettingController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\ServiceTypeController;
+use App\Http\Controllers\Admin\ShipmentController as AdminShipmentController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Customer\BookingController;
+use App\Http\Controllers\Customer\PaymentController;
+use App\Http\Controllers\Customer\ReviewController;
+use App\Http\Controllers\Customer\ShipmentController;
+use App\Http\Controllers\Customer\StripePaymentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Driver\RouteController as DriverRouteController;
+use App\Http\Controllers\Driver\ShipmentController as DriverShipmentController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShipmentCancelController;
 use App\Http\Controllers\ShipmentLocationController;
-use App\Http\Controllers\TrackingController;
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Admin\PricingSettingController;
-use App\Http\Controllers\Admin\ServiceTypeController;
-use App\Http\Controllers\Admin\CargoTypeController;
-use App\Http\Controllers\Admin\VehicleController;
-use App\Http\Controllers\Admin\DriverController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\DiscountCodeController;
-use App\Http\Controllers\Admin\NotificationLogController;
-use App\Http\Controllers\Admin\ReportController;
-use App\Http\Controllers\Admin\AutomationController;
-use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
-use App\Http\Controllers\Admin\ShipmentController as AdminShipmentController;
-use App\Http\Controllers\Customer\BookingController;
-use App\Http\Controllers\Customer\ShipmentController;
-use App\Http\Controllers\Customer\ReviewController;
-use App\Http\Controllers\Customer\PaymentController;
-use App\Http\Controllers\Customer\StripePaymentController;
-use App\Http\Controllers\Driver\ShipmentController as DriverShipmentController;
-use App\Http\Controllers\Driver\RouteController as DriverRouteController;
+use App\Http\Controllers\ShipmentMailController;
 use App\Http\Controllers\Staff\WalkInBookingController;
+use App\Http\Controllers\TrackingController;
+use App\Http\Middleware\EnsureUserIsActive;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('intro');
@@ -89,7 +90,7 @@ Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
         Route::post('/shipments/{shipment}/review', [ReviewController::class, 'store'])->middleware('throttle:20,1')->name('shipments.review');
         Route::get('/shipments/{shipment}/pay', [PaymentController::class, 'create'])->name('shipments.pay');
         Route::post('/shipments/{shipment}/pay', [PaymentController::class, 'store'])->middleware('throttle:10,1')->name('shipments.pay.store');
-                Route::post('/shipments/{shipment}/stripe', [StripePaymentController::class, 'checkout'])->middleware('throttle:10,1')->name('shipments.stripe');
+        Route::post('/shipments/{shipment}/stripe', [StripePaymentController::class, 'checkout'])->middleware('throttle:10,1')->name('shipments.stripe');
         Route::get('/shipments/{shipment}/stripe/return', [StripePaymentController::class, 'success'])->middleware('throttle:20,1')->name('shipments.stripe.success');
         Route::get('/shipments/{shipment}/stripe/cancel', [StripePaymentController::class, 'cancel'])->name('shipments.stripe.cancel');
     });
@@ -100,6 +101,9 @@ Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
         Route::post('/walk-in/estimate', [WalkInBookingController::class, 'estimate'])->middleware('throttle:20,1')->name('walkin.estimate');
         Route::get('/walk-in/review', [WalkInBookingController::class, 'review'])->name('walkin.review');
         Route::post('/walk-in', [WalkInBookingController::class, 'store'])->name('walkin.store');
+
+        Route::post('/shipments/{shipment}/send-mail', [ShipmentMailController::class, 'send'])
+            ->name('shipments.sendMail');
     });
 
     // Driver-only screens
@@ -109,7 +113,7 @@ Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
         Route::post('/shipments/{shipment}/status', [DriverShipmentController::class, 'updateStatus'])->name('shipments.status');
         Route::post('/shipments/{shipment}/location', [DriverShipmentController::class, 'updateLocation'])
             ->middleware('throttle:30,1')->name('shipments.location');
-                    Route::get('/route', [DriverRouteController::class, 'show'])
+        Route::get('/route', [DriverRouteController::class, 'show'])
             ->middleware('throttle:30,1')->name('route');
     });
 
@@ -118,7 +122,11 @@ Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
         Route::get('shipments', [AdminShipmentController::class, 'index'])->name('shipments.index');
         Route::get('shipments/{shipment}', [AdminShipmentController::class, 'show'])->name('shipments.show');
     });
-
+    Route::middleware('role:admin,staff')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('shipments', [AdminShipmentController::class, 'index'])->name('shipments.index');
+        Route::get('shipments/{shipment}', [AdminShipmentController::class, 'show'])->name('shipments.show');
+        Route::post('shipments/{shipment}/send-mail', [ShipmentMailController::class, 'send'])->name('shipments.sendMail');
+    });
     // Admin-only screens
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');

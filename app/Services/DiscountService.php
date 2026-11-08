@@ -20,11 +20,11 @@ class DiscountService
         $code = DiscountCode::where('code', $input)->first();
 
         if (! $code) {
-            throw new RuntimeException('The discount code "' . $input . '" does not exist.');
+            throw new RuntimeException('The discount code "'.$input.'" does not exist.');
         }
 
         if (! $code->isUsable()) {
-            throw new RuntimeException('The discount code "' . $input . '" has expired or is no longer active.');
+            throw new RuntimeException('The discount code "'.$input.'" has expired or is no longer active.');
         }
 
         return $code;

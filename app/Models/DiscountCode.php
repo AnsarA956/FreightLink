@@ -10,9 +10,9 @@ class DiscountCode extends Model
     protected $fillable = ['code', 'percent', 'expires_on', 'is_active'];
 
     protected $casts = [
-        'percent'    => 'decimal:2',
+        'percent' => 'decimal:2',
         'expires_on' => 'date',
-        'is_active'  => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function shipments(): HasMany

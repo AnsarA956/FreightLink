@@ -9,13 +9,14 @@ class RouteOptimizer
     // $start = [lat, lng] or null
     public function optimize(Collection $shipments, ?array $start = null): array
     {
-        $stops   = [];
+        $stops = [];
         $skipped = [];
 
         foreach ($shipments as $s) {
             // A shipment without saved map points (booked before Step 23) cannot be placed
             if ($s->delivery_lat === null || $s->delivery_lng === null) {
                 $skipped[] = $s->tracking_id;
+
                 continue;
             }
 
@@ -27,22 +28,22 @@ class RouteOptimizer
                 $stops[] = [
                     'shipment_id' => $s->id,
                     'tracking_id' => $s->tracking_id,
-                    'type'        => 'Pickup',
-                    'address'     => $s->pickup_address,
-                    'lat'         => (float) $s->pickup_lat,
-                    'lng'         => (float) $s->pickup_lng,
-                    'requires'    => null,
+                    'type' => 'Pickup',
+                    'address' => $s->pickup_address,
+                    'lat' => (float) $s->pickup_lat,
+                    'lng' => (float) $s->pickup_lng,
+                    'requires' => null,
                 ];
             }
 
             $stops[] = [
                 'shipment_id' => $s->id,
                 'tracking_id' => $s->tracking_id,
-                'type'        => 'Delivery',
-                'address'     => $s->delivery_address,
-                'lat'         => (float) $s->delivery_lat,
-                'lng'         => (float) $s->delivery_lng,
-                'requires'    => $pickupIndex,   // index of the pickup stop that must come first
+                'type' => 'Delivery',
+                'address' => $s->delivery_address,
+                'lat' => (float) $s->delivery_lat,
+                'lng' => (float) $s->delivery_lng,
+                'requires' => $pickupIndex,   // index of the pickup stop that must come first
             ];
         }
 
@@ -56,7 +57,7 @@ class RouteOptimizer
         }
 
         // The order the stops would be visited in without optimization
-        $original   = range(0, $count - 1);
+        $original = range(0, $count - 1);
         $originalKm = $this->length($stops, $original, $start);
 
         // Without a start point, try every possible first stop and keep the shortest route
@@ -65,67 +66,67 @@ class RouteOptimizer
             : array_keys(array_filter($stops, fn ($stop) => $stop['requires'] === null));
 
         $bestOrder = $original;
-        $bestKm    = $originalKm;
+        $bestKm = $originalKm;
 
         foreach ($firsts as $first) {
             $order = $this->nearest($stops, $start, $first);
             $order = $this->improve($stops, $order, $start);
-            $km    = $this->length($stops, $order, $start);
+            $km = $this->length($stops, $order, $start);
 
             if ($km + 0.000001 < $bestKm) {
-                $bestKm    = $km;
+                $bestKm = $km;
                 $bestOrder = $order;
             }
         }
 
         // Build the result with the distance of every leg
         $result = [];
-        $prev   = $start;
+        $prev = $start;
 
         foreach ($bestOrder as $n => $i) {
             $stop = $stops[$i];
-            $leg  = $prev !== null ? $this->km($prev, [$stop['lat'], $stop['lng']]) : 0.0;
+            $leg = $prev !== null ? $this->km($prev, [$stop['lat'], $stop['lng']]) : 0.0;
 
             $result[] = [
-                'step'        => $n + 1,
+                'step' => $n + 1,
                 'shipment_id' => $stop['shipment_id'],
                 'tracking_id' => $stop['tracking_id'],
-                'type'        => $stop['type'],
-                'address'     => $stop['address'],
-                'lat'         => $stop['lat'],
-                'lng'         => $stop['lng'],
-                'leg_km'      => round($leg, 1),
+                'type' => $stop['type'],
+                'address' => $stop['address'],
+                'lat' => $stop['lat'],
+                'lng' => $stop['lng'],
+                'leg_km' => round($leg, 1),
             ];
 
             $prev = [$stop['lat'], $stop['lng']];
         }
 
         return [
-            'stops'       => $result,
-            'total_km'    => round($bestKm, 1),
+            'stops' => $result,
+            'total_km' => round($bestKm, 1),
             'original_km' => round($originalKm, 1),
-            'saved_km'    => max(0, round($originalKm - $bestKm, 1)),
-            'start'       => $start,
-            'skipped'     => $skipped,
+            'saved_km' => max(0, round($originalKm - $bestKm, 1)),
+            'start' => $start,
+            'skipped' => $skipped,
         ];
     }
 
     // Nearest-stop method: always go to the closest stop that is allowed next
     private function nearest(array $stops, ?array $start, ?int $first): array
     {
-        $order   = [];
+        $order = [];
         $visited = [];
         $current = $start;
 
         if ($first !== null) {
-            $order[]        = $first;
+            $order[] = $first;
             $visited[$first] = true;
-            $current        = [$stops[$first]['lat'], $stops[$first]['lng']];
+            $current = [$stops[$first]['lat'], $stops[$first]['lng']];
         }
 
         while (count($order) < count($stops)) {
             $bestIndex = null;
-            $bestDist  = INF;
+            $bestDist = INF;
 
             foreach ($stops as $i => $stop) {
                 if (isset($visited[$i])) {
@@ -140,14 +141,14 @@ class RouteOptimizer
                 $dist = $current !== null ? $this->km($current, [$stop['lat'], $stop['lng']]) : 0.0;
 
                 if ($dist < $bestDist) {
-                    $bestDist  = $dist;
+                    $bestDist = $dist;
                     $bestIndex = $i;
                 }
             }
 
-            $order[]              = $bestIndex;
-            $visited[$bestIndex]  = true;
-            $current              = [$stops[$bestIndex]['lat'], $stops[$bestIndex]['lng']];
+            $order[] = $bestIndex;
+            $visited[$bestIndex] = true;
+            $current = [$stops[$bestIndex]['lat'], $stops[$bestIndex]['lng']];
         }
 
         return $order;
@@ -156,8 +157,8 @@ class RouteOptimizer
     // 2-opt: reverse a part of the route when that makes it shorter and the order is still allowed
     private function improve(array $stops, array $order, ?array $start): array
     {
-        $best  = $this->length($stops, $order, $start);
-        $n     = count($order);
+        $best = $this->length($stops, $order, $start);
+        $n = count($order);
         $round = 0;
 
         do {
@@ -179,8 +180,8 @@ class RouteOptimizer
                     $len = $this->length($stops, $candidate, $start);
 
                     if ($len + 0.000001 < $best) {
-                        $best     = $len;
-                        $order    = $candidate;
+                        $best = $len;
+                        $order = $candidate;
                         $improved = true;
                     }
                 }
@@ -208,7 +209,7 @@ class RouteOptimizer
     private function length(array $stops, array $order, ?array $start): float
     {
         $total = 0.0;
-        $prev  = $start;
+        $prev = $start;
 
         foreach ($order as $i) {
             $point = [$stops[$i]['lat'], $stops[$i]['lng']];
@@ -227,8 +228,8 @@ class RouteOptimizer
     private function km(array $a, array $b): float
     {
         $earth = 6371.0;
-        $dLat  = deg2rad($b[0] - $a[0]);
-        $dLng  = deg2rad($b[1] - $a[1]);
+        $dLat = deg2rad($b[0] - $a[0]);
+        $dLng = deg2rad($b[1] - $a[1]);
 
         $h = sin($dLat / 2) ** 2
            + cos(deg2rad($a[0])) * cos(deg2rad($b[0])) * sin($dLng / 2) ** 2;

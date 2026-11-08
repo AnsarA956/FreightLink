@@ -11,7 +11,7 @@ class ShipmentCancelController extends Controller
     // REQ-12: a booking can be cancelled before a driver is assigned
     public function __invoke(Shipment $shipment)
     {
-        $user    = auth()->user();
+        $user = auth()->user();
         $isStaff = in_array($user->role, ['admin', 'staff']);
         $isOwner = $user->role === 'customer' && $user->id === $shipment->user_id;
 
@@ -30,9 +30,9 @@ class ShipmentCancelController extends Controller
 
             StatusLog::create([
                 'shipment_id' => $fresh->id,
-                'status'      => 'Cancelled',
-                'note'        => 'Cancelled by ' . ($isOwner ? 'the customer' : ucfirst($user->role) . ' ' . $user->name),
-                'changed_at'  => now(),
+                'status' => 'Cancelled',
+                'note' => 'Cancelled by '.($isOwner ? 'the customer' : ucfirst($user->role).' '.$user->name),
+                'changed_at' => now(),
             ]);
 
             return true;
@@ -42,6 +42,6 @@ class ShipmentCancelController extends Controller
             return back()->with('error', 'This booking can no longer be cancelled, because a driver has already been assigned or it has already moved on.');
         }
 
-        return back()->with('success', 'The booking ' . $shipment->tracking_id . ' was cancelled.');
+        return back()->with('success', 'The booking '.$shipment->tracking_id.' was cancelled.');
     }
 }

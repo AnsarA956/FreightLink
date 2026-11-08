@@ -20,10 +20,10 @@ class PaymentController extends Controller
             ->paginate(20);
 
         return view('admin.payments.index', [
-            'payments'  => $payments,
+            'payments' => $payments,
             'collected' => (float) $totals->collected,
-            'paid'      => (int) $totals->paid,
-            'failed'    => (int) $totals->failed,
+            'paid' => (int) $totals->paid,
+            'failed' => (int) $totals->failed,
         ]);
     }
 }

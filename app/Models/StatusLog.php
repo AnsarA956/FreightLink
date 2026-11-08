@@ -18,7 +18,7 @@ class StatusLog extends Model
     {
         // REQ-38: every new status entry may trigger an email to the customer
         static::created(function (StatusLog $log) {
-            $send       = fn () => app(ShipmentNotifier::class)->handle($log);
+            $send = fn () => app(ShipmentNotifier::class)->handle($log);
             $connection = DB::connection();
 
             // If we are inside a database transaction, wait until it is saved before sending

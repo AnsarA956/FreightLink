@@ -16,8 +16,8 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $filters = $request->validate([
-            'q'      => ['nullable', 'string', 'max:100'],
-            'role'   => ['nullable', Rule::in(['customer', 'staff', 'admin', 'driver'])],
+            'q' => ['nullable', 'string', 'max:100'],
+            'role' => ['nullable', Rule::in(['customer', 'staff', 'admin', 'driver'])],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
         ]);
 
@@ -26,8 +26,8 @@ class UserController extends Controller
             ->when($filters['q'] ?? null, function ($query, $q) {
                 $query->where(function ($w) use ($q) {
                     $w->where('name', 'like', "%{$q}%")
-                      ->orWhere('email', 'like', "%{$q}%")
-                      ->orWhere('phone', 'like', "%{$q}%");
+                        ->orWhere('email', 'like', "%{$q}%")
+                        ->orWhere('phone', 'like', "%{$q}%");
                 });
             })
             ->when($filters['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
@@ -42,19 +42,19 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone'    => ['required', 'string', 'max:20'],
-            'role'     => ['required', Rule::in(self::ROLES)],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:20'],
+            'role' => ['required', Rule::in(self::ROLES)],
             'password' => ['required', 'string', 'min:8'],
         ]);
 
         User::create([
-            'name'      => $data['name'],
-            'email'     => $data['email'],
-            'phone'     => $data['phone'],
-            'role'      => $data['role'],
-            'password'  => Hash::make($data['password']),
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'],
+            'role' => $data['role'],
+            'password' => Hash::make($data['password']),
             'is_active' => true,
         ]);
 
@@ -71,10 +71,10 @@ class UserController extends Controller
         $isWalkIn = str_ends_with($user->email, '@freightlink.local');
 
         return view('admin.users.edit', [
-            'user'     => $user,
-            'isSelf'   => $user->id === auth()->id(),
+            'user' => $user,
+            'isSelf' => $user->id === auth()->id(),
             'isWalkIn' => $isWalkIn,
-            'roles'    => self::ROLES,
+            'roles' => self::ROLES,
         ]);
     }
 
@@ -88,11 +88,11 @@ class UserController extends Controller
         $isSelf = $user->id === auth()->id();
 
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone'    => ['required', 'string', 'max:20'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['required', 'string', 'max:20'],
             // The role field is not sent when the admin edits their own account
-            'role'     => [Rule::requiredIf(! $isSelf), Rule::in(self::ROLES)],
+            'role' => [Rule::requiredIf(! $isSelf), Rule::in(self::ROLES)],
             'password' => ['nullable', 'string', 'min:8'],
         ]);
 
@@ -102,14 +102,14 @@ class UserController extends Controller
         // A user with shipments is a customer with a history, so the role must stay "customer"
         if ($role !== $user->role && $role !== 'customer' && $user->shipments()->exists()) {
             return back()->withInput()->withErrors([
-                'role' => 'This user has shipments, so the role cannot be changed to ' . $role . '.',
+                'role' => 'This user has shipments, so the role cannot be changed to '.$role.'.',
             ]);
         }
 
-        $user->name  = $data['name'];
+        $user->name = $data['name'];
         $user->email = $data['email'];
         $user->phone = $data['phone'];
-        $user->role  = $role;
+        $user->role = $role;
 
         // Only change the password if a new one was typed
         if (! empty($data['password'])) {

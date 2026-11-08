@@ -20,7 +20,7 @@ return new class extends Migration
         // The shipment remembers which code was used and what it gave (a snapshot, like the price)
         Schema::table('shipments', function (Blueprint $table) {
             $table->foreignId('discount_code_id')->nullable()->after('cargo_type_id')
-                  ->constrained('discount_codes')->nullOnDelete();
+                ->constrained('discount_codes')->nullOnDelete();
             $table->string('discount_code', 30)->nullable()->after('discount_amount');
             $table->decimal('discount_percent', 5, 2)->nullable()->after('discount_code');
         });

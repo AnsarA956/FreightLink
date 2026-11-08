@@ -10,8 +10,8 @@ class InvoiceController extends Controller
     // REQ-37: download the PDF invoice
     public function download(Shipment $shipment, InvoiceService $invoices)
     {
-        $user    = auth()->user();
-                $isAdmin = in_array($user->role, ['admin', 'staff']);
+        $user = auth()->user();
+        $isAdmin = in_array($user->role, ['admin', 'staff']);
         $isOwner = $user->id === $shipment->user_id;
 
         // Only the admin and the customer who booked it may open the invoice
@@ -27,11 +27,11 @@ class InvoiceController extends Controller
         }
 
         $invoice = $invoices->invoiceFor($shipment);
-        $pdf     = $invoices->pdf($shipment, $invoice);
+        $pdf = $invoices->pdf($shipment, $invoice);
 
         return response($pdf, 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="' . $invoice->invoice_no . '.pdf"',
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$invoice->invoice_no.'.pdf"',
         ]);
     }
 }

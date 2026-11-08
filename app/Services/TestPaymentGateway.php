@@ -34,9 +34,9 @@ class TestPaymentGateway
         $known = ['brand' => $card['brand'], 'last4' => substr($number, -4)];
 
         return match ($card['result']) {
-            'success'            => $known + ['ok' => true,  'reason' => null],
+            'success' => $known + ['ok' => true,  'reason' => null],
             'insufficient_funds' => $known + ['ok' => false, 'reason' => 'The card has insufficient funds.'],
-            default              => $known + ['ok' => false, 'reason' => 'The card was declined.'],
+            default => $known + ['ok' => false, 'reason' => 'The card was declined.'],
         };
     }
 

@@ -10,7 +10,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-
 class ReportController extends Controller
 {
     // The report page. With no choices made yet, it shows a daily report of the last 30 days.
@@ -20,7 +19,7 @@ class ReportController extends Controller
             [$type, $from, $to] = $this->parse($request);
         } else {
             $type = 'daily';
-            $to   = today();
+            $to = today();
             $from = today()->subDays(29);
         }
 
@@ -31,28 +30,28 @@ class ReportController extends Controller
             'Today' => [
                 'type' => 'daily',
                 'from' => today()->format('Y-m-d'),
-                'to'   => today()->format('Y-m-d'),
+                'to' => today()->format('Y-m-d'),
             ],
             'This week' => [
                 'type' => 'daily',
                 'from' => today()->startOfWeek()->format('Y-m-d'),
-                'to'   => today()->format('Y-m-d'),
+                'to' => today()->format('Y-m-d'),
             ],
             'This month' => [
                 'type' => 'weekly',
                 'from' => today()->startOfMonth()->format('Y-m-d'),
-                'to'   => today()->format('Y-m-d'),
+                'to' => today()->format('Y-m-d'),
             ],
             'Last 6 months' => [
                 'type' => 'monthly',
                 'from' => today()->subMonths(5)->startOfMonth()->format('Y-m-d'),
-                'to'   => today()->format('Y-m-d'),
+                'to' => today()->format('Y-m-d'),
             ],
         ];
 
         return view('admin.reports.index', [
-            'r'       => $report,
-            'types'   => ReportService::TYPES,
+            'r' => $report,
+            'types' => ReportService::TYPES,
             'presets' => $presets,
         ]);
     }
@@ -63,21 +62,21 @@ class ReportController extends Controller
         [$type, $from, $to] = $this->parse($request);
 
         $report = $reports->build($type, $from, $to, 300);
-        $pdf    = $reports->pdf($report, auth()->user()->name);
+        $pdf = $reports->pdf($report, auth()->user()->name);
 
         return response($pdf, 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="' . $this->filename($type, $from, $to, 'pdf') . '"',
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$this->filename($type, $from, $to, 'pdf').'"',
         ]);
     }
 
-        // REQ-44: Excel export
+    // REQ-44: Excel export
     public function excel(Request $request, ReportService $reports)
     {
         [$type, $from, $to] = $this->parse($request);
 
         $report = $reports->build($type, $from, $to, 10000);
-        $path   = (new ReportExport($report))->save();
+        $path = (new ReportExport($report))->save();
 
         return response()->download($path, $this->filename($type, $from, $to, 'xlsx'), [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -90,11 +89,11 @@ class ReportController extends Controller
         $data = $request->validate([
             'type' => ['required', Rule::in(array_keys(ReportService::TYPES))],
             'from' => ['required', 'date'],
-            'to'   => ['required', 'date', 'after_or_equal:from'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
         ]);
 
         $from = Carbon::parse($data['from'])->startOfDay();
-        $to   = Carbon::parse($data['to'])->startOfDay();
+        $to = Carbon::parse($data['to'])->startOfDay();
 
         if ($from->diffInDays($to) > 365) {
             throw ValidationException::withMessages([
@@ -107,6 +106,6 @@ class ReportController extends Controller
 
     private function filename(string $type, Carbon $from, Carbon $to, string $extension): string
     {
-        return 'freightlink-' . $type . '-report-' . $from->format('Y-m-d') . '-to-' . $to->format('Y-m-d') . '.' . $extension;
+        return 'freightlink-'.$type.'-report-'.$from->format('Y-m-d').'-to-'.$to->format('Y-m-d').'.'.$extension;
     }
 }

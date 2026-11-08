@@ -32,7 +32,7 @@ class Driver extends Model
 
         return [
             'average' => $row->total > 0 ? round((float) $row->average, 2) : null,
-            'count'   => (int) $row->total,
+            'count' => (int) $row->total,
         ];
     }
 }

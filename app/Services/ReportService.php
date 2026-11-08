@@ -12,8 +12,8 @@ use Illuminate\Support\Carbon;
 class ReportService
 {
     public const TYPES = [
-        'daily'   => 'Daily',
-        'weekly'  => 'Weekly',
+        'daily' => 'Daily',
+        'weekly' => 'Weekly',
         'monthly' => 'Monthly',
     ];
 
@@ -42,7 +42,7 @@ class ReportService
             ->pluck('total', 'status');
 
         $shipments = (int) $sum->shipments;
-        $revenue   = round((float) $sum->revenue, 2);
+        $revenue = round((float) $sum->revenue, 2);
 
         $pending = 0;
         foreach (self::PENDING as $status) {
@@ -52,14 +52,14 @@ class ReportService
         $summary = [
             'shipments' => $shipments,
             'delivered' => (int) $counts->get('Delivered', 0) + (int) $counts->get('Closed', 0),
-            'pending'   => $pending,
+            'pending' => $pending,
             'cancelled' => (int) $counts->get('Cancelled', 0),
-            'revenue'   => $revenue,
-            'tax'       => round((float) $sum->tax, 2),
-            'discount'  => round((float) $sum->discount, 2),
-            'average'   => $shipments > 0 ? round($revenue / $shipments, 2) : 0.0,
-            'distance'  => round((float) $sum->distance, 2),
-            'weight'    => round((float) $sum->weight, 2),
+            'revenue' => $revenue,
+            'tax' => round((float) $sum->tax, 2),
+            'discount' => round((float) $sum->discount, 2),
+            'average' => $shipments > 0 ? round($revenue / $shipments, 2) : 0.0,
+            'distance' => round((float) $sum->distance, 2),
+            'weight' => round((float) $sum->weight, 2),
         ];
 
         // One row per booking day, then rolled up into days, weeks or months below
@@ -76,9 +76,9 @@ class ReportService
 
         foreach (CarbonPeriod::create($from, $to) as $date) {
             $key = match ($type) {
-                'weekly'  => $date->copy()->startOfWeek()->format('Y-m-d'),
+                'weekly' => $date->copy()->startOfWeek()->format('Y-m-d'),
                 'monthly' => $date->format('Y-m'),
-                default   => $date->format('Y-m-d'),
+                default => $date->format('Y-m-d'),
             };
 
             if (! isset($groups[$key])) {
@@ -96,7 +96,7 @@ class ReportService
                 $groups[$key]['shipments'] += (int) $row->shipments;
                 $groups[$key]['delivered'] += (int) $row->delivered;
                 $groups[$key]['cancelled'] += (int) $row->cancelled;
-                $groups[$key]['revenue']   += (float) $row->revenue;
+                $groups[$key]['revenue'] += (float) $row->revenue;
             }
         }
 
@@ -104,17 +104,17 @@ class ReportService
 
         foreach ($groups as $group) {
             $label = match ($type) {
-                'weekly'  => $group['start']->format('d M') . ' - ' . $group['end']->format('d M Y'),
+                'weekly' => $group['start']->format('d M').' - '.$group['end']->format('d M Y'),
                 'monthly' => $group['start']->format('F Y'),
-                default   => $group['start']->format('D, d M Y'),
+                default => $group['start']->format('D, d M Y'),
             };
 
             $periods[] = [
-                'label'     => $label,
+                'label' => $label,
                 'shipments' => $group['shipments'],
                 'delivered' => $group['delivered'],
                 'cancelled' => $group['cancelled'],
-                'revenue'   => round($group['revenue'], 2),
+                'revenue' => round($group['revenue'], 2),
             ];
         }
 
@@ -137,9 +137,9 @@ class ReportService
             ->groupBy('service_type_id')
             ->get()
             ->map(fn ($row) => [
-                'name'      => $names[$row->service_type_id] ?? 'Unknown',
+                'name' => $names[$row->service_type_id] ?? 'Unknown',
                 'shipments' => (int) $row->shipments,
-                'revenue'   => round((float) $row->revenue, 2),
+                'revenue' => round((float) $row->revenue, 2),
             ])
             ->sortByDesc('revenue')
             ->values()
@@ -147,11 +147,11 @@ class ReportService
 
         // The detailed list of shipments (only for the PDF and Excel files)
         $listTotal = 0;
-        $list      = collect();
+        $list = collect();
 
         if ($listLimit > 0) {
             $listTotal = $base()->count();
-            $list      = $base()->with(['user', 'serviceType', 'driver.user'])
+            $list = $base()->with(['user', 'serviceType', 'driver.user'])
                 ->orderBy('created_at')
                 ->orderBy('id')
                 ->limit($listLimit)
@@ -159,15 +159,15 @@ class ReportService
         }
 
         return [
-            'type'            => $type,
-            'type_label'      => self::TYPES[$type],
-            'from'            => $from,
-            'to'              => $to,
-            'summary'         => $summary,
-            'periods'         => $periods,
-            'statuses'        => $statuses,
-            'services'        => $services,
-            'shipments'       => $list,
+            'type' => $type,
+            'type_label' => self::TYPES[$type],
+            'from' => $from,
+            'to' => $to,
+            'summary' => $summary,
+            'periods' => $periods,
+            'statuses' => $statuses,
+            'services' => $services,
+            'shipments' => $list,
             'shipments_total' => $listTotal,
         ];
     }
@@ -177,7 +177,7 @@ class ReportService
     {
         $html = view('reports.pdf', ['r' => $report, 'generatedBy' => $generatedBy])->render();
 
-        $options = new Options();
+        $options = new Options;
         $options->set('defaultFont', 'DejaVu Sans');
         $options->set('isRemoteEnabled', false);
         $options->set('isPhpEnabled', false);

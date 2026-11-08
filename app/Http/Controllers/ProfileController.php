@@ -19,7 +19,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
-            'name'  => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['required', 'string', 'max:20'],
         ]);
@@ -34,7 +34,7 @@ class ProfileController extends Controller
     {
         $data = $request->validateWithBag('password', [
             'current_password' => ['required', 'current_password'],
-            'password'         => ['required', 'string', 'min:8', 'confirmed', 'different:current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed', 'different:current_password'],
         ]);
 
         $request->user()->update(['password' => Hash::make($data['password'])]);

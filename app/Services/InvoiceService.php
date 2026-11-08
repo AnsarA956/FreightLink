@@ -20,8 +20,8 @@ class InvoiceService
         return Invoice::firstOrCreate(
             ['shipment_id' => $shipment->id],
             [
-                'invoice_no' => 'INV-' . now()->format('Y') . '-' . str_pad((string) $shipment->id, 5, '0', STR_PAD_LEFT),
-                'issued_at'  => now(),
+                'invoice_no' => 'INV-'.now()->format('Y').'-'.str_pad((string) $shipment->id, 5, '0', STR_PAD_LEFT),
+                'issued_at' => now(),
             ]
         );
     }
@@ -32,24 +32,24 @@ class InvoiceService
         $shipment->loadMissing(['user', 'serviceType', 'cargoType', 'paidPayment']);
 
         // The price lines are rebuilt from the values saved with the shipment
-        $subtotal      = (float) $shipment->subtotal;
+        $subtotal = (float) $shipment->subtotal;
         $serviceAmount = round($subtotal * (float) $shipment->service_multiplier, 2);
-        $serviceExtra  = round($serviceAmount - $subtotal, 2);
-        $taxable       = round(max(0, $serviceAmount + (float) $shipment->cargo_surcharge - (float) $shipment->discount_amount), 2);
+        $serviceExtra = round($serviceAmount - $subtotal, 2);
+        $taxable = round(max(0, $serviceAmount + (float) $shipment->cargo_surcharge - (float) $shipment->discount_amount), 2);
 
         // REQ-36: the QR code opens the public tracking page
         $trackUrl = route('track.show', $shipment->tracking_id);
 
         $html = view('invoices.pdf', [
-            'shipment'     => $shipment,
-            'invoice'      => $invoice,
+            'shipment' => $shipment,
+            'invoice' => $invoice,
             'serviceExtra' => $serviceExtra,
-            'taxable'      => $taxable,
-            'trackUrl'     => $trackUrl,
-            'qr'           => $this->qrDataUri($trackUrl),
+            'taxable' => $taxable,
+            'trackUrl' => $trackUrl,
+            'qr' => $this->qrDataUri($trackUrl),
         ])->render();
 
-        $options = new Options();
+        $options = new Options;
         $options->set('defaultFont', 'DejaVu Sans');
         $options->set('isRemoteEnabled', false);
         $options->set('isPhpEnabled', false);
@@ -67,10 +67,10 @@ class InvoiceService
     private function qrDataUri(string $text): ?string
     {
         try {
-            $renderer = new ImageRenderer(new RendererStyle(220, 2), new SvgImageBackEnd());
-            $svg      = (new Writer($renderer))->writeString($text);
+            $renderer = new ImageRenderer(new RendererStyle(220, 2), new SvgImageBackEnd);
+            $svg = (new Writer($renderer))->writeString($text);
 
-            return 'data:image/svg+xml;base64,' . base64_encode($svg);
+            return 'data:image/svg+xml;base64,'.base64_encode($svg);
         } catch (Throwable $e) {
             report($e);
 

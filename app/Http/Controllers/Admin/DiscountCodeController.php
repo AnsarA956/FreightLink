@@ -22,8 +22,8 @@ class DiscountCodeController extends Controller
         $request->merge(['code' => strtoupper(trim((string) $request->input('code')))]);
 
         $data = $request->validate([
-            'code'       => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_-]+$/', 'unique:discount_codes,code'],
-            'percent'    => ['required', 'numeric', 'min:0.01', 'max:100'],
+            'code' => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_-]+$/', 'unique:discount_codes,code'],
+            'percent' => ['required', 'numeric', 'min:0.01', 'max:100'],
             'expires_on' => ['nullable', 'date', 'after_or_equal:today'],
         ], [
             'code.regex' => 'A code may contain only letters, numbers, a dash and an underscore.',
@@ -31,7 +31,7 @@ class DiscountCodeController extends Controller
 
         DiscountCode::create($data + ['is_active' => true]);
 
-        return back()->with('success', 'Discount code ' . $data['code'] . ' created.');
+        return back()->with('success', 'Discount code '.$data['code'].' created.');
     }
 
     public function update(Request $request, DiscountCode $discount_code)
@@ -39,10 +39,10 @@ class DiscountCodeController extends Controller
         $request->merge(['code' => strtoupper(trim((string) $request->input('code')))]);
 
         $data = $request->validate([
-            'code'       => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_-]+$/', Rule::unique('discount_codes', 'code')->ignore($discount_code->id)],
-            'percent'    => ['required', 'numeric', 'min:0.01', 'max:100'],
+            'code' => ['required', 'string', 'max:30', 'regex:/^[A-Z0-9_-]+$/', Rule::unique('discount_codes', 'code')->ignore($discount_code->id)],
+            'percent' => ['required', 'numeric', 'min:0.01', 'max:100'],
             'expires_on' => ['nullable', 'date'],
-            'is_active'  => ['required', 'boolean'],
+            'is_active' => ['required', 'boolean'],
         ], [
             'code.regex' => 'A code may contain only letters, numbers, a dash and an underscore.',
         ]);

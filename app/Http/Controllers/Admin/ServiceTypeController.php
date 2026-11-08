@@ -19,7 +19,7 @@ class ServiceTypeController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'       => ['required', 'string', 'max:100', 'unique:service_types,name'],
+            'name' => ['required', 'string', 'max:100', 'unique:service_types,name'],
             'multiplier' => ['required', 'numeric', 'min:0.1', 'max:10'], // COLUMN
         ]);
 
@@ -31,7 +31,7 @@ class ServiceTypeController extends Controller
     public function update(Request $request, ServiceType $service_type)
     {
         $data = $request->validate([
-            'name'       => ['required', 'string', 'max:100', Rule::unique('service_types', 'name')->ignore($service_type->id)],
+            'name' => ['required', 'string', 'max:100', Rule::unique('service_types', 'name')->ignore($service_type->id)],
             'multiplier' => ['required', 'numeric', 'min:0.1', 'max:10'], // COLUMN
         ]);
 
