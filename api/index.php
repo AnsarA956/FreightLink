@@ -14,5 +14,16 @@ foreach ($storageDirs as $dir) {
     }
 }
 
+// Ensure SQLite database exists in writable /tmp
+$tmpDb = '/tmp/database.sqlite';
+if (! file_exists($tmpDb)) {
+    $seededDb = __DIR__.'/../database/database.sqlite';
+    if (file_exists($seededDb)) {
+        @copy($seededDb, $tmpDb);
+    } else {
+        @touch($tmpDb);
+    }
+}
+
 // Forward Vercel requests to normal Laravel public/index.php
 require __DIR__.'/../public/index.php';
