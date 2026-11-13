@@ -2,6 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Invoice;
+use App\Models\NotificationLog;
+use App\Models\Payment;
 use App\Models\Review;
 use App\Models\Shipment;
 use App\Models\ShipmentLocation;
@@ -25,6 +28,9 @@ class DemoCleanupSeeder extends Seeder
         Review::whereIn('shipment_id', $shipmentIds)->delete();
         ShipmentLocation::whereIn('shipment_id', $shipmentIds)->delete();
         StatusLog::whereIn('shipment_id', $shipmentIds)->delete();
+        Invoice::whereIn('shipment_id', $shipmentIds)->delete();
+        Payment::whereIn('shipment_id', $shipmentIds)->delete();
+        NotificationLog::whereIn('shipment_id', $shipmentIds)->delete();
         Shipment::whereIn('id', $shipmentIds)->delete();
         User::whereIn('id', $userIds)->delete();
     }
