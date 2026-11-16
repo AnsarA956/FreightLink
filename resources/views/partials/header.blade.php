@@ -59,7 +59,7 @@
                     <div class="fedex-dropdown">
                         <a href="mailto:support@freightlink.com"><i class="fa-solid fa-headset"></i> Customer Service</a>
                         <a href="#faq"><i class="fa-solid fa-circle-question"></i> Help & FAQs</a>
-                        <a href="tel:+923001234567"><i class="fa-solid fa-phone"></i> +92 (300) 123-4567</a>
+                        <a href="tel:03367836094"><i class="fa-solid fa-phone"></i> 03367836094</a>
                     </div>
                 </li>
             </ul>

@@ -6,12 +6,12 @@
             <span style="background-color: var(--brand-orange); color: #ffffff; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">
                 <i class="fa-solid fa-phone"></i> 24/7 HOTLINE
             </span>
-            <a href="tel:+923001234567" style="color: #ffffff; font-weight: 600; letter-spacing: 0.3px;">+92 (300) 123-4567</a>
+            <a href="tel:03367836094" style="color: #ffffff; font-weight: 600; letter-spacing: 0.3px;">03367836094</a>
         </div>
 
         {{-- Middle: Address & Hours --}}
         <div class="topbar-middle" style="display: flex; align-items: center; gap: 20px; color: #94a3b8;">
-            <span><i class="fa-solid fa-location-dot" style="color: var(--brand-orange); margin-right: 5px;"></i> Faisalabad, Pakistan</span>
+            <span><i class="fa-solid fa-location-dot" style="color: var(--brand-orange); margin-right: 5px;"></i> Narowal, Pakistan</span>
             <span><i class="fa-solid fa-clock" style="color: var(--brand-orange); margin-right: 5px;"></i> Mon - Sat: 8:00 AM - 8:00 PM</span>
         </div>
 

@@ -54,8 +54,8 @@
             <div class="footer-col">
                 <h4>Regional Office</h4>
                 <ul>
-                    <li><i class="fa-solid fa-location-dot" style="color:var(--brand-orange); margin-right:8px;"></i> 123 Logistics Blvd, Faisalabad</li>
-                    <li><i class="fa-solid fa-phone" style="color:var(--brand-orange); margin-right:8px;"></i> +92 (300) 123-4567</li>
+                    <li><i class="fa-solid fa-location-dot" style="color:var(--brand-orange); margin-right:8px;"></i> Narowal, Pakistan</li>
+                    <li><i class="fa-solid fa-phone" style="color:var(--brand-orange); margin-right:8px;"></i> <a href="tel:03367836094" style="color: inherit; text-decoration: none;">03367836094</a></li>
                     <li><i class="fa-solid fa-envelope" style="color:var(--brand-orange); margin-right:8px;"></i> support@freightlink.com</li>
                     <li><i class="fa-solid fa-clock" style="color:var(--brand-orange); margin-right:8px;"></i> Mon - Sat: 8:00 AM - 8:00 PM</li>
                 </ul>
