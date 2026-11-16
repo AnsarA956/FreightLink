@@ -33,8 +33,8 @@ use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('intro');
-});
+    return view('home');
+})->name('home');
 
 // Public tracking pages (no login needed). Limited to 30 requests per minute per visitor.
 Route::middleware('throttle:30,1')->group(function () {
