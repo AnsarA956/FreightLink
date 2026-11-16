@@ -221,31 +221,35 @@
 @else
 
     {{-- Visitors who are not logged in: simple top bar --}}
-    <header class="bg-slate-900 text-white">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-2 text-xl font-bold tracking-tight">
-                <span class="bg-orange-500 rounded-lg w-9 h-9 flex items-center justify-center text-lg">🚚</span>
-                FreightLink
-            </a>
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-slate-900 text-white">
+            <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+                <a href="/" class="flex items-center gap-2 text-xl font-bold tracking-tight">
+                    <span class="bg-orange-500 rounded-lg w-9 h-9 flex items-center justify-center text-lg">🚚</span>
+                    FreightLink
+                </a>
 
-            <nav class="flex items-center gap-4 text-sm">
-                <a href="{{ route('track.index') }}" class="hover:text-orange-400">Track Shipment</a>
-                <a href="{{ route('login') }}" class="hover:text-orange-400">Login</a>
-                <a href="{{ route('register') }}" class="bg-orange-500 hover:bg-orange-600 px-4 py-1.5 rounded-lg font-semibold">Register</a>
-            </nav>
-        </div>
-    </header>
+                <nav class="flex items-center gap-4 text-sm">
+                    <a href="{{ route('track.index') }}" class="hover:text-orange-400">Track Shipment</a>
+                    <a href="{{ route('login') }}" class="hover:text-orange-400">Login</a>
+                    <a href="{{ route('register') }}" class="bg-orange-500 hover:bg-orange-600 px-4 py-1.5 rounded-lg font-semibold">Register</a>
+                </nav>
+            </div>
+        </header>
 
-    <main class="max-w-6xl mx-auto px-4 py-8">
-        @if (session('success'))
-            <div class="mb-4 p-3 rounded-lg bg-green-100 text-green-800 border border-green-200">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="mb-4 p-3 rounded-lg bg-red-100 text-red-800 border border-red-200">{{ session('error') }}</div>
-        @endif
+        <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full">
+            @if (session('success'))
+                <div class="mb-4 p-3 rounded-lg bg-green-100 text-green-800 border border-green-200">{{ session('success') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="mb-4 p-3 rounded-lg bg-red-100 text-red-800 border border-red-200">{{ session('error') }}</div>
+            @endif
 
-        @yield('content')
-    </main>
+            @yield('content')
+        </main>
+
+        @include('partials.footer')
+    </div>
 
 @endauth
 
