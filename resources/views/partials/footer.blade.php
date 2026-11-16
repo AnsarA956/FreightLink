@@ -1,78 +1,93 @@
 <footer class="fedex-footer">
     <div class="fl-container">
+        {{-- Top 4 Columns --}}
         <div class="footer-grid">
-            {{-- Brand Column --}}
-            <div class="footer-col footer-brand">
-                <a href="{{ url('/') }}" class="brand-link">
-                    <span class="part-white">Freight</span><span class="part-orange">Link</span>
-                    <i class="fa-solid fa-truck-fast part-icon"></i>
-                </a>
-                <p>
-                    FreightLink is Pakistan's premier freight, cargo, and logistics management network. Connecting merchants, enterprises, and individuals with transparent pricing and real-time tracking.
-                </p>
-                <div class="footer-social-links">
-                    <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="Facebook">
-                        <i class="fa-brands fa-facebook-f"></i>
-                    </a>
-                    <a href="https://x.com" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="X (Twitter)">
-                        <i class="fa-brands fa-x-twitter"></i>
-                    </a>
-                    <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="LinkedIn">
-                        <i class="fa-brands fa-linkedin-in"></i>
-                    </a>
-                    <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="social-circle-btn" aria-label="Instagram">
-                        <i class="fa-brands fa-instagram"></i>
-                    </a>
+            {{-- Column 1: OUR COMPANY --}}
+            <div class="footer-col">
+                <h4>OUR COMPANY</h4>
+                <ul>
+                    <li><a href="#about">About FreightLink</a></li>
+                    <li><a href="#investor-relations">Investor Relations</a></li>
+                    <li><a href="#careers">Careers</a></li>
+                    <li><a href="#holiday-schedule">International Holiday Schedule</a></li>
+                    <li><a href="#conditions">Conditions of Carriage</a></li>
+                    <li><a href="#corporate-rules">Binding Corporate Rules</a></li>
+                    <li><a href="#newsroom">MEISA Newsroom</a></li>
+                </ul>
+            </div>
+
+            {{-- Column 2: NEW CUSTOMER --}}
+            <div class="footer-col">
+                <h4>NEW CUSTOMER</h4>
+                <ul>
+                    <li><a href="{{ route('register') }}">Open an Account</a></li>
+                    <li><a href="{{ route('login') }}">Create User ID (For Existing Customers)</a></li>
+                    <li><a href="#calculator">Shipping Rates & Calculator</a></li>
+                    <li><a href="{{ route('track.index') }}">Tracking Guide</a></li>
+                </ul>
+            </div>
+
+            {{-- Column 3: MORE FROM FREIGHTLINK --}}
+            <div class="footer-col">
+                <h4>MORE FROM FREIGHTLINK</h4>
+                <ul>
+                    <li><a href="#surcharges">Fuel Surcharges</a></li>
+                    <li><a href="#resources">Resources</a></li>
+                    <li><a href="#locations">FreightLink Locations</a></li>
+                    <li><a href="tel:03367836094">Regional Hub: Narowal (03367836094)</a></li>
+                </ul>
+            </div>
+
+            {{-- Column 4: LANGUAGE --}}
+            <div class="footer-col footer-col-lang">
+                <h4>LANGUAGE</h4>
+                <div class="country-pill">
+                    <i class="fa-solid fa-earth-americas"></i>
+                    <span>Pakistan</span>
                 </div>
-            </div>
-
-            {{-- Services Column --}}
-            <div class="footer-col">
-                <h4>Services</h4>
-                <ul>
-                    <li><a href="#services">Road Freight Transport</a></li>
-                    <li><a href="#services">Express Cargo Delivery</a></li>
-                    <li><a href="#services">Heavy & Fragile Cargo</a></li>
-                    <li><a href="#services">Warehousing & Storage</a></li>
-                    <li><a href="#services">Door-to-Door Courier</a></li>
-                </ul>
-            </div>
-
-            {{-- Tracking & Tools Column --}}
-            <div class="footer-col">
-                <h4>Tools & Support</h4>
-                <ul>
-                    <li><a href="{{ route('track.index') }}">Track Any Shipment</a></li>
-                    <li><a href="#calculator">Rate & Transit Estimator</a></li>
-                    <li><a href="{{ route('login') }}">Customer Portal Login</a></li>
-                    <li><a href="{{ route('register') }}">Create Free Account</a></li>
-                    <li><a href="mailto:support@freightlink.com">Help & Customer Support</a></li>
-                </ul>
-            </div>
-
-            {{-- Contact Information --}}
-            <div class="footer-col">
-                <h4>Regional Office</h4>
-                <ul>
-                    <li><i class="fa-solid fa-location-dot" style="color:var(--brand-orange); margin-right:8px;"></i> Narowal, Pakistan</li>
-                    <li><i class="fa-solid fa-phone" style="color:var(--brand-orange); margin-right:8px;"></i> <a href="tel:03367836094" style="color: inherit; text-decoration: none;">03367836094</a></li>
-                    <li><i class="fa-solid fa-envelope" style="color:var(--brand-orange); margin-right:8px;"></i> support@freightlink.com</li>
-                    <li><i class="fa-solid fa-clock" style="color:var(--brand-orange); margin-right:8px;"></i> Mon - Sat: 8:00 AM - 8:00 PM</li>
-                </ul>
+                <div class="lang-select-box">
+                    <span>English</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
             </div>
         </div>
 
-        {{-- Bottom Copyright Bar --}}
-        <div class="footer-bottom-bar">
-            <div>
-                &copy; {{ date('Y') }} FreightLink Express Inc. All rights reserved.
+        {{-- Divider Line --}}
+        <div class="footer-divider"></div>
+
+        {{-- Social Links Row --}}
+        <div class="footer-social-row">
+            <span class="social-row-title">FOLLOW FREIGHTLINK</span>
+            <div class="footer-social-icons">
+                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="fedex-social-circle" aria-label="Facebook">
+                    <i class="fa-brands fa-facebook-f"></i>
+                </a>
+                <a href="https://x.com" target="_blank" rel="noopener noreferrer" class="fedex-social-circle" aria-label="X (Twitter)">
+                    <i class="fa-brands fa-x-twitter"></i>
+                </a>
+                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" class="fedex-social-circle" aria-label="YouTube">
+                    <i class="fa-brands fa-youtube"></i>
+                </a>
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="fedex-social-circle" aria-label="LinkedIn">
+                    <i class="fa-brands fa-linkedin-in"></i>
+                </a>
+                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="fedex-social-circle" aria-label="Instagram">
+                    <i class="fa-brands fa-instagram"></i>
+                </a>
             </div>
-            <div class="footer-bottom-links">
-                <a href="#privacy">Privacy Policy</a>
-                <span>•</span>
+        </div>
+    </div>
+
+    {{-- Full-Width Purple Bottom Bar --}}
+    <div class="fedex-footer-bottom-bar">
+        <div class="fl-container fedex-bottom-inner">
+            <div class="copyright-text">
+                &copy; FreightLink 1995-{{ date('Y') }}
+            </div>
+            <div class="fedex-legal-links">
                 <a href="#terms">Terms of Use</a>
-                <span>•</span>
-                <a href="#security">Security & Standards</a>
+                <span class="legal-separator">|</span>
+                <a href="#security">Security and Privacy</a>
             </div>
         </div>
     </div>
