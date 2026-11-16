@@ -86,4 +86,49 @@ document.addEventListener('DOMContentLoaded', function () {
             transitResult.style.display = 'block';
         });
     }
+
+    // 5. Auth Dropdown Toggle (Sign Up / Log In)
+    const authWrapper = document.getElementById('fedex-auth-wrapper');
+    const authTrigger = document.getElementById('fedex-auth-trigger');
+    const authMenu = document.getElementById('fedex-auth-menu');
+
+    if (authWrapper && authTrigger && authMenu) {
+        authTrigger.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = authWrapper.classList.contains('is-open');
+            if (isOpen) {
+                closeAuthMenu();
+            } else {
+                openAuthMenu();
+            }
+        });
+
+        function openAuthMenu() {
+            authWrapper.classList.add('is-open');
+            authTrigger.classList.add('active');
+            authTrigger.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeAuthMenu() {
+            authWrapper.classList.remove('is-open');
+            authTrigger.classList.remove('active');
+            authTrigger.setAttribute('aria-expanded', 'false');
+        }
+
+        // Close when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!authWrapper.contains(e.target)) {
+                closeAuthMenu();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && authWrapper.classList.contains('is-open')) {
+                closeAuthMenu();
+                authTrigger.focus();
+            }
+        });
+    }
 });

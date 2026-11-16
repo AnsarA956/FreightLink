@@ -68,15 +68,52 @@
         {{-- Right Side Actions (Auth + Search + Mobile Toggle) --}}
         <div class="fedex-nav-actions">
             @guest
-                <a href="{{ route('login') }}" class="auth-btn-link" title="Sign Up or Log In">
-                    <span>Sign Up/Log In</span>
-                    <i class="fa-regular fa-circle-user"></i>
-                </a>
+                <div class="fedex-auth-wrapper" id="fedex-auth-wrapper">
+                    <button type="button" class="auth-btn-link" id="fedex-auth-trigger" aria-haspopup="true" aria-expanded="false" title="Sign Up or Log In">
+                        <span>Sign Up/Log In</span>
+                        <i class="fa-regular fa-circle-user"></i>
+                    </button>
+                    <div class="fedex-auth-menu" id="fedex-auth-menu" role="menu">
+                        <a href="{{ route('login') }}" class="fedex-auth-menu-link" role="menuitem">
+                            LOG IN
+                        </a>
+                        <a href="{{ route('register') }}" class="fedex-auth-menu-link" role="menuitem">
+                            CREATE USER ID (FOR EXISTING CUSTOMERS)
+                        </a>
+                        <a href="{{ route('register') }}" class="fedex-auth-menu-link" role="menuitem">
+                            OPEN AN ACCOUNT
+                        </a>
+                    </div>
+                </div>
             @else
-                <a href="{{ route('dashboard') }}" class="auth-btn-link" title="My Dashboard">
-                    <span>Dashboard</span>
-                    <i class="fa-solid fa-gauge-high"></i>
-                </a>
+                <div class="fedex-auth-wrapper" id="fedex-auth-wrapper">
+                    <button type="button" class="auth-btn-link" id="fedex-auth-trigger" aria-haspopup="true" aria-expanded="false" title="My Account">
+                        <span>{{ Auth::user()->name }}</span>
+                        <i class="fa-regular fa-circle-user"></i>
+                    </button>
+                    <div class="fedex-auth-menu" id="fedex-auth-menu" role="menu">
+                        <a href="{{ route('dashboard') }}" class="fedex-auth-menu-link" role="menuitem">
+                            DASHBOARD
+                        </a>
+                        @if(Auth::user()->role === 'customer')
+                            <a href="{{ route('customer.shipments.index') }}" class="fedex-auth-menu-link" role="menuitem">
+                                MY SHIPMENTS
+                            </a>
+                            <a href="{{ route('customer.book.create') }}" class="fedex-auth-menu-link" role="menuitem">
+                                BOOK SHIPMENT
+                            </a>
+                        @endif
+                        <a href="{{ route('profile.edit') }}" class="fedex-auth-menu-link" role="menuitem">
+                            MY PROFILE
+                        </a>
+                        <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
+                            @csrf
+                            <button type="submit" class="fedex-auth-menu-link fedex-logout-btn" role="menuitem">
+                                LOG OUT
+                            </button>
+                        </form>
+                    </div>
+                </div>
             @endguest
 
             {{-- Search Button --}}

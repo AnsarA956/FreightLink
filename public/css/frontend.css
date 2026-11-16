@@ -197,24 +197,116 @@ button {
     gap: 20px;
 }
 
+/* Auth Dropdown (FedEx Style: Sign Up / Log In) */
+.fedex-auth-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
 .auth-btn-link {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 14.5px;
     font-weight: 600;
-    padding: 6px 12px;
+    padding: 10px 14px;
     border-radius: 6px;
-    transition: var(--transition-fast);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.auth-btn-link:hover {
-    background-color: rgba(255, 255, 255, 0.15);
+.auth-btn-link:hover,
+.auth-btn-link.active,
+.fedex-auth-wrapper.is-open .auth-btn-link,
+.fedex-auth-wrapper:hover .auth-btn-link {
+    background-color: #ffffff;
+    color: var(--brand-purple);
+    border-radius: 6px 6px 0 0;
 }
 
 .auth-btn-link i {
-    font-size: 18px;
+    font-size: 19px;
+    transition: color 0.15s ease;
+}
+
+.auth-btn-link:hover i,
+.auth-btn-link.active i,
+.fedex-auth-wrapper.is-open .auth-btn-link i,
+.fedex-auth-wrapper:hover .auth-btn-link i {
+    color: var(--brand-purple);
+}
+
+.fedex-auth-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 290px;
+    max-width: calc(100vw - 32px);
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1100;
+    overflow: hidden;
+}
+
+.fedex-auth-wrapper.is-open .fedex-auth-menu,
+.fedex-auth-wrapper:hover .fedex-auth-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.fedex-auth-menu-link {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 16px 20px;
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #007ab8;
+    text-decoration: none;
+    border-bottom: 1px solid #edf2f7;
+    background-color: #ffffff;
+    text-align: left;
+    line-height: 1.35;
+    transition: background-color 0.15s ease, color 0.15s ease, padding-left 0.15s ease;
+}
+
+.fedex-auth-menu-link:last-child {
+    border-bottom: none;
+}
+
+.fedex-auth-menu-link:hover {
+    background-color: #f8fafc;
+    color: #005a87;
+    padding-left: 24px;
+}
+
+.fedex-logout-btn {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    color: #dc2626 !important;
+}
+
+.fedex-logout-btn:hover {
+    background-color: #fef2f2 !important;
+    color: #b91c1c !important;
 }
 
 .nav-icon-btn {
